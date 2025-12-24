@@ -1,0 +1,4 @@
+/mnt/datadisk1/c++/clion/Kernel-Image-Processing/cmake-build-debug/CMakeFiles/cuda_base.dir
+/mnt/datadisk1/c++/clion/Kernel-Image-Processing/cmake-build-debug/CMakeFiles/Kernel-Image-Processing.dir
+/mnt/datadisk1/c++/clion/Kernel-Image-Processing/cmake-build-debug/CMakeFiles/edit_cache.dir
+/mnt/datadisk1/c++/clion/Kernel-Image-Processing/cmake-build-debug/CMakeFiles/rebuild_cache.dir
