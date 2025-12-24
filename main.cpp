@@ -8,7 +8,7 @@
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 
-
+#include "util.h"
 #include "imgProc.h"
 
 
@@ -28,7 +28,7 @@
 int main(int argc, char** argv) {
     // Verifica i parametri di input
 
-
+    SplashScreen();
     std::string Filter="gaussian";
     std::string imagePath = "/mnt/datadisk1/c++/clion/Kernel-Image-Processing/input/peperoni.png";
     std::string cudaMemType =  CMD_CUDA_CONST;
