@@ -2,7 +2,7 @@
 #define KERNEL_IMG_FILTER_H
 
 #include <vector>
-
+#include <string>
 
 
 constexpr float SHARPEN_CENTER = 9.0f;
@@ -22,14 +22,11 @@ public:
         kernelData.clear();
         std::vector<float>().swap(kernelData);
     }
-
-    bool buildEdgeDetect();
-    bool buildSharp();
-    bool buildGaussian(int size, float sigma);
-    bool buildLaplacian();
+    std::string name;
+    bool buildFilter(std::string filter);
 
     void display() const;
-
+    std::string getName() const;
     int getSize() const;
 
     std::vector<float> getKernelData() const;
@@ -37,6 +34,10 @@ public:
 private:
 
     bool Init(std::vector<float>& kernel, float centerValue, float surroundValue, int size);
+    bool buildEdgeDetect();
+    bool buildSharp();
+    bool buildGaussian(int size, float sigma);
+    bool buildLaplacian();
 
     std::vector<float> kernelData;  
     int size;                       

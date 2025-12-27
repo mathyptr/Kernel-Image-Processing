@@ -1,5 +1,5 @@
 // image_processor.cu
-#include "imgProc.h"
+#include "imgProcCuda.h"
 #include <png++/png.hpp>
 #include <iostream>
 #include <chrono>
@@ -16,7 +16,6 @@
 
 
 __device__ __constant__ float d_filterKernel[MAX_KERNEL_SIZE * MAX_KERNEL_SIZE];
-
 
 unsigned int calcolaBlocchi(unsigned int total, unsigned int blockSize) {
     return (total + blockSize - 1) / blockSize;
@@ -122,38 +121,21 @@ __global__ void processaImmagineShared(
 }
 
 
-ImgProc::ImgProc() : width(0), height(0) {}
+ImgProcCuda::ImgProcCuda(ImgProc& inputImage) {
+    imgProcInput=inputImage;
 
-
-ImgProc::~ImgProc() {
-    imgData.clear();
-    std::vector<float>().swap(imgData);
 }
 
 
-bool ImgProc::loadImageFromFile(const char* filepath) {
-    try {
-        png::image<png::gray_pixel> image(filepath);
-        width = image.get_width();
-        height = image.get_height();
+ImgProcCuda::~ImgProcCuda() {
 
-        imgData.resize(width * height);
-        for (size_t y = 0; y < height; ++y) {
-            for (size_t x = 0; x < width; ++x) {
-                imgData[y * width + x] = static_cast<float>(image[y][x]);
-            }
-        }
-        return true;
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Errore nel caricamento dell'immagine: " << e.what() << std::endl;
-        return false;
-    }
 }
 
-
-bool ImgProc::saveImageToFile(const char* filepath) const {
+bool ImgProcCuda::saveImageToFile(const char* filepath) const {
     try {
+        int height=imgProcInput.getHeight();
+        int width=imgProcInput.getWidth();
+        std::vector<float> imgData= imgProc.getImageData();
         png::image<png::gray_pixel> image(width, height);
         for (size_t y = 0; y < height; ++y) {
             for (size_t x = 0; x < width; ++x) {
@@ -170,8 +152,10 @@ bool ImgProc::saveImageToFile(const char* filepath) const {
     }
 }
 
+/*
+std::vector<float> ImgProcCuda::createPaddedImg(int paddingY, int paddingX) const {
 
-std::vector<float> ImgProc::createPaddedImg(int paddingY, int paddingX) const {
+    std::vector<float> imgData= imgProc.getImageData();
     int paddedWidth = width + 2 * paddingX;
     int paddedHeight = height + 2 * paddingY;
     std::vector<float> padded(paddedWidth * paddedHeight);
@@ -201,10 +185,9 @@ std::vector<float> ImgProc::createPaddedImg(int paddingY, int paddingX) const {
 
     return padded;
 }
+*/
 
-
-bool ImgProc::ParallelFilter(
-        ImgProc& output, const kernelImgFilter& filter, const CudaMemoryType memType)
+bool ImgProcCuda::ParallelFilter(const kernelImgFilter& filter, const CudaMemoryType memType)
 {
     int kernelSize = filter.getSize();
     if (kernelSize > MAX_KERNEL_SIZE) {
@@ -213,14 +196,21 @@ bool ImgProc::ParallelFilter(
     }
 
     int radius = kernelSize / 2;
-    auto padded = createPaddedImg(radius, radius);
+    auto padded = imgProcInput.createPaddedImg(radius, radius);
+
+    int height=imgProcInput.getHeight();
+    int width=imgProcInput.getWidth();
+
     int paddedWidth = width + 2 * radius;
     int paddedHeight = height + 2 * radius;
 
     float* d_input, * d_output, * d_kernel = nullptr;
-    cudaMalloc(&d_input, paddedWidth * paddedHeight * sizeof(float));
-    cudaMalloc(&d_output, width * height * sizeof(float));
-
+    if(cudaMalloc(&d_input, paddedWidth * paddedHeight * sizeof(float))!=cudaSuccess)
+        return false;
+    if(cudaMalloc(&d_output, width * height * sizeof(float))!=cudaSuccess) {
+        cudaFree(d_input);
+        return false;
+    }
     cudaMemcpy(d_input, padded.data(),
         paddedWidth * paddedHeight * sizeof(float),
         cudaMemcpyHostToDevice);
@@ -232,12 +222,16 @@ bool ImgProc::ParallelFilter(
     );
 
     if (memType == CudaMemoryType::GLOBAL_MEM) {
-        cudaMalloc(&d_kernel, kernelSize * kernelSize * sizeof(float));
+        if(cudaMalloc(&d_kernel, kernelSize * kernelSize * sizeof(float))!=cudaSuccess) {
+            cudaFree(d_input);
+            cudaFree(d_output);
+            return false;
+        }
         cudaMemcpy(d_kernel, filter.getKernelData().data(),
             kernelSize * kernelSize * sizeof(float),
             cudaMemcpyHostToDevice);
 
-        processaImmagineGlobale << <gridSize, blockSize >> > (
+        processaImmagineGlobale <<<gridSize, blockSize >>> (
             d_input, d_output, d_kernel,
             width, height, paddedWidth, paddedHeight,
             kernelSize
@@ -247,7 +241,7 @@ bool ImgProc::ParallelFilter(
         cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),
             kernelSize * kernelSize * sizeof(float));
 
-        processaImmagineShared<BLOCK_DIM_X> << <gridSize, blockSize >> > (
+        processaImmagineShared<BLOCK_DIM_X> <<<gridSize, blockSize >>> (
             d_input, d_output,
             width, height, paddedWidth, paddedHeight,
             kernelSize
@@ -257,7 +251,7 @@ bool ImgProc::ParallelFilter(
         cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),
             kernelSize * kernelSize * sizeof(float));
 
-        processaImmagineConstante << <gridSize, blockSize >> > (
+        processaImmagineConstante <<<gridSize, blockSize >>> (
             d_input, d_output,
             width, height, paddedWidth, paddedHeight,
             kernelSize
@@ -280,17 +274,17 @@ bool ImgProc::ParallelFilter(
     cudaFree(d_output);
     if (d_kernel) cudaFree(d_kernel);
 
-    output.setImageData(result, width, height);
+    imgProc.setImageData(result, width, height);
     return true;
 }
 
-
-int ImgProc::getWidth() const { return width; }
-int ImgProc::getHeight() const { return height; }
-int ImgProc::getChannels() const { return 1; }  // Immagini in scala di grigi
-
-
-bool ImgProc::setImageData(const std::vector<float>& data, int w, int h) {
+/*
+int ImgProcCuda::getWidth() const { return width; }
+int ImgProcCuda::getHeight() const { return height; }
+int ImgProcCuda::getChannels() const { return 1; }  // Immagini in scala di grigi
+*/
+/*
+bool ImgProcCuda::setImageData(const std::vector<float>& data, int w, int h) {
     if (data.size() != w * h) {
         std::cerr << "Dimensioni dati non valide" << std::endl;
         return false;
@@ -299,8 +293,5 @@ bool ImgProc::setImageData(const std::vector<float>& data, int w, int h) {
     height = h;
     imgData = data;
     return true;
-}
+}*/
 
-std::vector<float> ImgProc::getImageData() const {
-    return imgData;
-}

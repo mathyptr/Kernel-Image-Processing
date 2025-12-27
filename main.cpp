@@ -1,6 +1,7 @@
 ﻿#include <iostream>
 #include <string>
 #include <chrono>
+#include <filesystem>
 
 #include <omp.h>
 
@@ -10,19 +11,9 @@
 
 #include "util.h"
 #include "imgProc.h"
+#include "imgProcSeq.h"
+#include "imgProcCuda.h"
 
-
-// Tipi di memoria CUDA 
-#define CMD_CUDA_GLOBAL  "global"      // Memoria globale GPU
-#define CMD_CUDA_SHARED  "shared"      // Memoria condivisa GPU
-#define CMD_CUDA_CONST   "constant"    // Memoria costante GPU
-
-
-// Tipi di filtro 
-#define EDGE_FILTER         "edge"        // Filtro per rilevamento bordi
-#define SHARPEN_FILTER      "sharpen"     // Filtro per nitidezza
-#define GAUSSIAN_FILTER     "gaussian"    // Filtro per sfocatura gaussiana
-#define LAPLACIAN_FILTER    "laplacian"   // Filtro laplaciano
 
 
 int main(int argc, char** argv) {
@@ -30,31 +21,21 @@ int main(int argc, char** argv) {
 
     SplashScreen();
     std::string Filter="gaussian";
-    std::string imagePath = "/mnt/datadisk1/c++/clion/Kernel-Image-Processing/input/peperoni.png";
-    std::string cudaMemType =  CMD_CUDA_CONST;
-    std::string outputdir="/mnt/datadisk1/c++/clion/Kernel-Image-Processing/output/";
+    std::string imagePath = "./input/peperoni1024.png";
+    std::string outputdir="./output/";
+    std::string file_outPar = "./output/resultPAR.csv";
     std::string img_ext=".png";
-    kernelImgFilter filter;
-    if (Filter == GAUSSIAN_FILTER) {
-        filter.buildGaussian(7, 1.0f);  // Kernel 7x7, sigma=1.0
-    }
-    else if (Filter == SHARPEN_FILTER) {
-        filter.buildSharp();
-    }
-    else if (Filter == EDGE_FILTER) {
-        filter.buildEdgeDetect();
-    }
-    else if (Filter == LAPLACIAN_FILTER) {
-        filter.buildLaplacian();
-    }
-    else {
-        std::cerr << "Tipo di filtro non valido: " << Filter << std::endl;
-        return 1;
-    }
+    kernelImgFilter kImgFilter;
+
+    std::cout << "Directory corrente: " << filesystem::current_path() << '\n';
+
+    std::string  filter;
+    filter=chooseFilter();
+    kImgFilter.buildFilter(filter);
 
     // Visualizza il kernel del filtro selezionato
-    std::cout << "\nFiltro da applicare: " << Filter << std::endl;
-    filter.display();
+    std::cout << "\nFiltro da applicare: " << kImgFilter.getName() << std::endl;
+    kImgFilter.display();
 
     /**
      * Load immagine
@@ -65,39 +46,140 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    ImgProc outputCUDA;
-    ImgProc outputCPU;
+    testResult testr;
+    std::vector<testResult> testVectResult;
+
+    /*** Test Elaborazione Seguenziale ***/
+    std::cout << "############################" << std::endl;
+    std::cout << "###  Test Elaborazione   ###" << std::endl;
+    std::cout << "### Versione SEQUENZIALE ###" << std::endl;
+    std::cout << "############################" << std::endl;
+
+    ImgProcSeq imgSeq(inputImage);
+    std::chrono::high_resolution_clock::time_point tstart;
+    std::chrono::high_resolution_clock::time_point tend;
+    bool cpuResult;
+    tstart = std::chrono::high_resolution_clock::now();
+    cpuResult = imgSeq.applyFilterSequential(kImgFilter);
+    tend = std::chrono::high_resolution_clock::now();
+
+    if (cpuResult) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
+        std::cout << "Tempo di esecuzione CPU: " << elapsed << " microsec" << std::endl;
+        std::string outputFileImgaePath = outputdir + std::string("cpu_") + kImgFilter.getName()+ img_ext;
+        imgSeq.saveImageToFile(outputFileImgaePath.c_str());
+
+        std::vector<testResult> testVectResultSEQ;
+        testr.execTimes=elapsed;
+        testr.num_iter= 1;
+        testr.test_type=SEQUENTIAL;
+        testVectResultSEQ.push_back(testr);
+        testVectResult.push_back(testr);
+        std::string title="Risultati test Sequenziali";
+        SplashResult(title,testVectResultSEQ);
+    }
+
+
+
+
     std::vector<ImgProc> outputsOpenMP;
 
 
+
+
+
+
     /*** Test Elaborazione CUDA ***/
-    std::cout << "#############################" << std::endl;
-    std::cout << "###Test Elaborazione CUDA ###" << std::endl;
-    std::cout << "###  Versione Parallela   ###" << std::endl;
-    std::cout << "#############################" << std::endl;
+    std::cout << "#########################" << std::endl;
+    std::cout << "### Test Elaborazione ###" << std::endl;
+    std::cout << "###   Versione CUDA   ###" << std::endl;
+    std::cout << "#########################" << std::endl;
+
+    ImgProcCuda imgCUDA(inputImage);
+
     // Determina il tipo di memoria CUDA da utilizzare
     CudaMemoryType memType = CudaMemoryType::CONSTANT_MEM;
-    if (cudaMemType == CMD_CUDA_GLOBAL) {
-        memType = CudaMemoryType::GLOBAL_MEM;
-    }
-    else if (cudaMemType == CMD_CUDA_SHARED) {
-        memType = CudaMemoryType::SHARED_MEM;
-    }
 
-    
-    cudaFree(0);  // Inizializza il runtime CUDA
+//    cudaFree(0);  // Inizializza il runtime CUDA
 
+    bool cudaResult;
 
-    auto t3 = std::chrono::high_resolution_clock::now();
-    bool cudaResult = inputImage.ParallelFilter(outputCUDA, filter, memType);
-    auto t4 = std::chrono::high_resolution_clock::now();
+    tstart = std::chrono::high_resolution_clock::now();
+    cudaResult = imgCUDA.ParallelFilter( kImgFilter, memType);
+    tend = std::chrono::high_resolution_clock::now();
 
     if (cudaResult) {
-        auto cudaDuration = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count();
-        std::cout << "Tempo di esecuzione CUDA: " << cudaDuration << " microsec" << std::endl;
-        std::string outputCudaPath = outputdir + std::string("cuda_") + Filter + img_ext;
-        outputCUDA.saveImageToFile(outputCudaPath.c_str());
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
+        std::cout << "Tempo di esecuzione CUDA: " << elapsed << " microsec" << std::endl;
+        std::string outputFileImagePath = outputdir + std::string("cuda_CONSTANT_MEM_") + kImgFilter.getName()+ img_ext;
+        imgCUDA.saveImageToFile(outputFileImagePath.c_str());
+        std::vector<testResult> cudar;
+        std::vector<testResult> testVectResultCUDA;
+        testr.execTimes=elapsed;
+        testr.num_iter= 1;
+        testr.test_type=CUDA_CONSTANT_MEM;
+        testVectResultCUDA.push_back(testr);
+        testVectResult.push_back(testr);
+        std::string title="Risultati test CUDA CONSTANT_MEM";
+        SplashResult(title,testVectResultCUDA);
     }
+
+
+
+    memType = CudaMemoryType::GLOBAL_MEM;
+
+//    cudaFree(0);  // Inizializza il runtime CUDA
+
+
+    tstart = std::chrono::high_resolution_clock::now();
+    cudaResult = imgCUDA.ParallelFilter( kImgFilter, memType);
+    tend = std::chrono::high_resolution_clock::now();
+
+
+    if (cudaResult) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
+        std::cout << "Tempo di esecuzione CUDA: " << elapsed << " microsec" << std::endl;
+        std::string outputFileImagePath = outputdir + std::string("cuda_GLOBAL_MEM_") + kImgFilter.getName()+ img_ext;
+        imgCUDA.saveImageToFile(outputFileImagePath.c_str());
+        std::vector<testResult> cudar;
+        std::vector<testResult> testVectResultCUDA;
+        testr.execTimes=elapsed;
+        testr.num_iter= 1;
+        testr.test_type=CUDA_GLOBAL_MEM;
+        testVectResultCUDA.push_back(testr);
+        testVectResult.push_back(testr);
+        std::string title="Risultati test CUDA GLOBAL_MEM";
+        SplashResult(title,testVectResultCUDA);
+    }
+
+    memType = CudaMemoryType::SHARED_MEM;
+
+//    cudaFree(0);  // Inizializza il runtime CUDA
+
+
+    tstart = std::chrono::high_resolution_clock::now();
+    cudaResult = imgCUDA.ParallelFilter( kImgFilter, memType);
+    tend = std::chrono::high_resolution_clock::now();
+
+
+    if (cudaResult) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
+        std::cout << "Tempo di esecuzione CUDA: " << elapsed << " microsec" << std::endl;
+        std::string outputFileImagePath = outputdir + std::string("cuda_SHARED_MEM_") + kImgFilter.getName()+ img_ext;
+        imgCUDA.saveImageToFile(outputFileImagePath.c_str());
+        std::vector<testResult> cudar;
+        std::vector<testResult> testVectResultCUDA;
+        testr.execTimes=elapsed;
+        testr.num_iter= 1;
+        testr.test_type=CUDA_SHARED_MEM;
+        testVectResultCUDA.push_back(testr);
+        testVectResult.push_back(testr);
+        std::string title="Risultati test CUDA SHARED_MEM";
+        SplashResult(title,testVectResultCUDA);
+    }
+
+
+    saveResultToFile(file_outPar,testVectResult);
 
     return 0;
 }

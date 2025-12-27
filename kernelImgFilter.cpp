@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iomanip>
 
+#include "util.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -15,25 +16,81 @@ kernelImgFilter::kernelImgFilter() {
 }
 
 
-bool kernelImgFilter::buildEdgeDetect() {
-    std::cout << "Filtro edge detection...build..." << std::endl;
-    size = 3;
-    kernelData.resize(size * size);
+std::string kernelImgFilter::getName() const{
+    return name;
+}
 
+void kernelImgFilter::display() const {
+    if (size == 0 || kernelData.empty()) {
+        std::cout << "Il kernel non è inizializzato" << std::endl;
+        return;
+    }
+    std::cout << "##############################" << std::endl;
+    std::cout << "##### Matrice del Filtro #####\n";
+    std::cout << "##############################" << std::endl;
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
-            if (i == 1 && j == 1) {
-                kernelData[j + i * size] = EDGE_CENTER;
-            }
-            else {
-                kernelData[j + i * size] = EDGE_SURROUND;
-            }
+            std::cout << std::fixed << std::setprecision(4)
+                      << kernelData[j + i * size] << "\t";
         }
+        std::cout << std::endl;
     }
+    std::cout << "##############################" << std::endl;
+}
+
+
+int kernelImgFilter::getSize() const {
+    return size;
+}
+
+
+std::vector<float> kernelImgFilter::getKernelData() const {
+    return kernelData;
+}
+
+
+bool kernelImgFilter::buildFilter(std::string filter) {
+    name=filter;
+    bool res=false;
+    if (name == GAUSSIAN_FILTER_STR ) {
+        res=buildGaussian(7, 1.0f);  // Kernel 7x7, sigma=1.0
+    }
+    else if (name == SHARPEN_FILTER_STR ) {
+        res=buildSharp();
+    }
+    else if (name == EDGE_FILTER_STR ) {
+        res=buildEdgeDetect();
+    }
+    else if (name == LAPLACIAN_FILTER_STR ) {
+        res=buildLaplacian();
+    }
+    return res;
+}
+
+
+bool kernelImgFilter::Init(std::vector<float>& kernel, float centerValue, float surroundValue, int kernelSize) {
+    if (kernelSize % 2 == 0 || kernelSize < 3) {
+        std::cerr << "La dimensione kernel non è valida" << std::endl;
+        return false;
+    }
+    for (auto it = begin (kernelData); it != end (kernelData); ++it)
+        *it = surroundValue;
+    int mid=kernelSize / 2;
+    kernelData[mid + kernelSize*mid] = centerValue;
 
     return true;
 }
 
+bool kernelImgFilter::buildEdgeDetect() {
+    std::cout << "Filtro edge detection...build..." << std::endl;
+    size = 3;
+    kernelData.resize(size * size);
+    for (auto it = begin (kernelData); it != end (kernelData); ++it)
+        *it = EDGE_SURROUND;
+
+    kernelData[1 +  size] = EDGE_CENTER;
+    return true;
+}
 
 bool kernelImgFilter::buildSharp() {
     std::cout << "Filtro sharp...build..." << std::endl;
@@ -91,9 +148,8 @@ bool kernelImgFilter::buildLaplacian() {
     kernelData.resize(size * size);
 
     // Inizializza tutti gli elementi a -1
-    for (int i = 0; i < size * size; i++) {
-        kernelData[i] = LAPLACE_SURROUND;
-    }
+    for (auto it = begin (kernelData); it != end (kernelData); ++it)
+        *it = LAPLACE_SURROUND;
 
     // Imposta il valore centrale
     kernelData[4] = LAPLACE_CENTER;  // indice centrale in una matrice 3x3
@@ -107,54 +163,3 @@ bool kernelImgFilter::buildLaplacian() {
     return true;
 }
 
-
-
-bool kernelImgFilter::Init(std::vector<float>& kernel, float centerValue, float surroundValue, int kernelSize) {
-    if (kernelSize % 2 == 0 || kernelSize < 3) {
-        std::cerr << "La dimensione kernel non è valida" << std::endl;
-        return false;
-    }
-
-    for (int i = 0; i < kernelSize; i++) {
-        for (int j = 0; j < kernelSize; j++) {
-            if (i == kernelSize / 2 && j == kernelSize / 2) {
-                kernel[j + i * kernelSize] = centerValue;
-            }
-            else {
-                kernel[j + i * kernelSize] = surroundValue;
-            }
-        }
-    }
-
-    return true;
-}
-
-
-
-void kernelImgFilter::display() const {
-    if (size == 0 || kernelData.empty()) {
-        std::cout << "Il kernel non è inizializzato" << std::endl;
-        return;
-    }
-    std::cout << "##############################" << std::endl;
-    std::cout << "##### Matrice del Filtro #####\n";
-    std::cout << "##############################" << std::endl;
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            std::cout << std::fixed << std::setprecision(4)
-                << kernelData[j + i * size] << "\t";
-        }
-        std::cout << "\n";
-    }
-    std::cout << "##############################" << std::endl;
-}
-
-
-int kernelImgFilter::getSize() const {
-    return size;
-}
-
-
-std::vector<float> kernelImgFilter::getKernelData() const {
-    return kernelData;
-}
