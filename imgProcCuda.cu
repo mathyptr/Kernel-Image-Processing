@@ -21,24 +21,24 @@ unsigned int calcolaBlocchi(unsigned int total, unsigned int blockSize) {
     return (total + blockSize - 1) / blockSize;
 }
 
-__global__ void processaImmagineGlobale(
-    float* d_input, float* d_output, float* d_kernel,
+__global__ void processGlobalMem(
+    float* padded, float* d_output, float* kernel,
     int width, int height, int paddedWidth, int paddedHeight,
     int kernelSize)
 {
-    const int radius = kernelSize / 2;
+
     const int x = blockIdx.x * blockDim.x + threadIdx.x;  // Coordinata x del pixel
     const int y = blockIdx.y * blockDim.y + threadIdx.y;  // Coordinata y del pixel
 
     if (x >= width || y >= height) return;
 
     float sum = 0.0f;
-    for (int ky = -radius; ky <= radius; ky++) {
-        for (int kx = -radius; kx <= radius; kx++) {
-            int px = x + kx + radius;
-            int py = y + ky + radius;
-            float pixelValue = d_input[py * paddedWidth + px];
-            float kernelValue = d_kernel[(ky + radius) * kernelSize + (kx + radius)];
+    for (int ky = 0; ky < kernelSize; ky++) {
+        int py = (y + ky)* paddedWidth +x;
+        int pky=ky * kernelSize;
+        for (int kx = 0; kx < kernelSize; kx++) {
+            float pixelValue = padded[py + kx];
+            float kernelValue = kernel[pky + kx];
             sum += pixelValue * kernelValue;
         }
     }
@@ -47,26 +47,24 @@ __global__ void processaImmagineGlobale(
     d_output[y * width + x] = sum;
 }
 
-
-__global__ void processaImmagineConstante(
-    float* d_input, float* d_output,
+__global__ void processConstantMem(
+    float* padded, float* d_output,
     int width, int height, int paddedWidth, int paddedHeight,
     int kernelSize)
 {
 
-    const int radius = kernelSize / 2;
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (x >= width || y >= height) return;
 
     float sum = 0.0f;
-    for (int ky = -radius; ky <= radius; ky++) {
-        for (int kx = -radius; kx <= radius; kx++) {
-            int px = x + kx + radius;
-            int py = y + ky + radius;
-            float pixelValue = d_input[py * paddedWidth + px];
-            float kernelValue = d_filterKernel[(ky + radius) * kernelSize + (kx + radius)];
+    for (int ky = 0; ky < kernelSize; ky++) {
+        int py = (y + ky)* paddedWidth +x;
+        int pky=ky * kernelSize;
+        for (int kx = 0; kx < kernelSize; kx++) {
+            float pixelValue = padded[py + kx];
+            float kernelValue = d_filterKernel[pky + kx];
             sum += pixelValue * kernelValue;
         }
     }
@@ -75,14 +73,13 @@ __global__ void processaImmagineConstante(
     d_output[y * width + x] = sum;
 }
 
-
 template<int BLOCK_SIZE>
-__global__ void processaImmagineShared(
+__global__ void processSharedMem(
     float* d_input, float* d_output,
     int width, int height, int paddedWidth, int paddedHeight,
     int kernelSize)
 {
-    __shared__ float sharedMem[BLOCK_SIZE + 24][BLOCK_SIZE + 24]; // Per kernel fino a 5x5
+    __shared__ float sharedMem[BLOCK_SIZE + 24][BLOCK_SIZE + 24];
 
     const int radius = kernelSize / 2;
     const int tx = threadIdx.x;
@@ -132,28 +129,6 @@ ImgProcCuda::~ImgProcCuda() {
 
 }
 
-bool ImgProcCuda::saveImageToFile(const char* filepath) const {
-    try {
-        int height=imgProcInput.getHeight();
-        int width=imgProcInput.getWidth();
-        std::vector<float> imgData= imgProc.getImageData();
-        png::image<png::gray_pixel> image(width, height);
-        for (size_t y = 0; y < height; ++y) {
-            for (size_t x = 0; x < width; ++x) {
-                image[y][x] = static_cast<png::gray_pixel>(imgData[y * width + x]);
-            }
-        }
-        image.write(filepath);
-        std::cout << "Immagine salvata in: " << filepath << std::endl;
-        return true;
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Errore nel salvataggio dell'immagine: " << e.what() << std::endl;
-        return false;
-    }
-}
-
-
 bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryType memType)
 {
     int kernelSize = filter.getSize();
@@ -195,7 +170,7 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
             kernelSize * kernelSize * sizeof(float),
             cudaMemcpyHostToDevice);
 
-        processaImmagineGlobale <<<gridSize, blockSize >>> (
+        processGlobalMem <<<gridSize, blockSize >>> (
             d_input, d_output, d_kernel,
             width, height, paddedWidth, paddedHeight,
             kernelSize
@@ -205,7 +180,7 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
         cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),
             kernelSize * kernelSize * sizeof(float));
 
-        processaImmagineShared<BLOCK_DIM_X> <<<gridSize, blockSize >>> (
+        processSharedMem<BLOCK_DIM_X> <<<gridSize, blockSize >>> (
             d_input, d_output,
             width, height, paddedWidth, paddedHeight,
             kernelSize
@@ -215,7 +190,7 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
         cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),
             kernelSize * kernelSize * sizeof(float));
 
-        processaImmagineConstante <<<gridSize, blockSize >>> (
+        processConstantMem <<<gridSize, blockSize >>> (
             d_input, d_output,
             width, height, paddedWidth, paddedHeight,
             kernelSize
@@ -242,20 +217,21 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
     return true;
 }
 
-/*
-int ImgProcCuda::getWidth() const { return width; }
-int ImgProcCuda::getHeight() const { return height; }
-int ImgProcCuda::getChannels() const { return 1; }  // Immagini in scala di grigi
-*/
-/*
-bool ImgProcCuda::setImageData(const std::vector<float>& data, int w, int h) {
-    if (data.size() != w * h) {
-        std::cerr << "Dimensioni dati non valide" << std::endl;
+bool ImgProcCuda::saveImageToFile(const char* filepath) const {
+    try {
+        std::vector<float> imgData= imgProc.getImageData();
+        png::image<png::gray_pixel> image(width, height);
+        for (size_t y = 0; y < height; y++) {
+            for (size_t x = 0; x < width; x++) {
+                image[y][x] = static_cast<png::gray_pixel>(imgData[y * width + x]);
+            }
+        }
+        image.write(filepath);
+        std::cout << "Immagine salvata in: " << filepath << std::endl;
+        return true;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Errore nel salvataggio dell'immagine: " << e.what() << std::endl;
         return false;
     }
-    width = w;
-    height = h;
-    imgData = data;
-    return true;
-}*/
-
+}

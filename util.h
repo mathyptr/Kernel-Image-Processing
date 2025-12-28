@@ -21,10 +21,10 @@ enum testType { SEQUENTIAL, PARALLEL, CUDA_CONSTANT_MEM, CUDA_GLOBAL_MEM, CUDA_S
 
 struct testResult {
     int threadNum=1;
-    int chunkSize=0;
     double execTimes;
     int num_iter;
     testType  test_type;
+    std::string filter_type;
 };
 
 
@@ -32,4 +32,5 @@ void SplashScreen();
 std::string  chooseFilter();
 void SplashResult(string& title,std::vector<testResult>& result);
 void saveResultToFile(const std::string& filename,std::vector<testResult>& result);
+void checkGpuMem();
 #endif // UTIL_H

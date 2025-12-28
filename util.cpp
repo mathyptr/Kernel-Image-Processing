@@ -8,6 +8,9 @@
 #include <cmath>
 #include <numeric>
 
+#include <cuda_runtime.h>
+
+
 using namespace std;
 
 void SplashScreen() {
@@ -80,7 +83,7 @@ void SplashResult(string& title,std::vector<testResult>& result) {
 
 void saveResultToFile(const std::string& filename,std::vector<testResult>& result) {
     std::ofstream fileCSV(filename);
-    fileCSV << "testType,numThreads,chunkSize,execTimes,num_iter"<< endl;
+    fileCSV << "testType,filterType,numThreads,execTimes,num_iter"<< endl;
 
     for (const auto& res : result) {
         if( res.test_type==SEQUENTIAL)
@@ -95,11 +98,27 @@ void saveResultToFile(const std::string& filename,std::vector<testResult>& resul
             fileCSV << "CUDA_SHARED_MEM,";
         else
             fileCSV<<"NON_DEFINITO,";
-        fileCSV << res.threadNum<<",";
-        fileCSV << res.chunkSize<<",";
-        fileCSV << res.execTimes<< ",";
-        fileCSV << res.num_iter<< endl;
+        fileCSV << res.filter_type <<",";
+        fileCSV << res.threadNum <<",";
+        fileCSV << res.execTimes << ",";
+        fileCSV << res.num_iter << endl;
     }
 }
 
 
+void checkGpuMem()
+{
+    float free_m,total_m,used_m;
+
+    size_t free_t,total_t;
+    cudaMemGetInfo(&free_t,&total_t);
+    free_m =(uint)free_t/1048576.0 ;
+    total_m=(uint)total_t/1048576.0;
+    used_m=total_m-free_m;
+    cout << "#####################################"<<endl;
+    cout << "Mem free " << free_t << "(" << free_m << "MB)" <<endl;
+    cout << "Mem total " << total_t  << "(" << total_m << "MB)" <<endl;
+    cout << "Mem used " << used_m << "MB" << endl;
+    cout << "#####################################"<<endl;
+
+}

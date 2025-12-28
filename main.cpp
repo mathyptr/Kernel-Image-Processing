@@ -38,9 +38,7 @@ int main(int argc, char** argv) {
     std::cout << "\nFiltro da applicare: " << kImgFilter.getName() << std::endl;
     kImgFilter.display();
 
-    /**
-     * Load immagine
-     */
+    // Load immagine
     ImgProc inputImage;
     if (!inputImage.loadImageFromFile(imagePath.c_str())) {
         std::cerr << "Errore nella lettura dell'immagine sorgente: " << imagePath << std::endl;
@@ -74,19 +72,12 @@ int main(int argc, char** argv) {
         testr.execTimes=elapsed;
         testr.num_iter= 1;
         testr.test_type=SEQUENTIAL;
+        testr.filter_type=kImgFilter.getName() ;
         testVectResultSEQ.push_back(testr);
         testVectResult.push_back(testr);
         std::string title="Risultati test Sequenziali";
         SplashResult(title,testVectResultSEQ);
     }
-
-
-
-
-    std::vector<ImgProc> outputsOpenMP;
-
-
-
 
 
 
@@ -96,9 +87,10 @@ int main(int argc, char** argv) {
     std::cout << "###   Versione CUDA   ###" << std::endl;
     std::cout << "#########################" << std::endl;
 
+
     ImgProcCuda imgCUDA(inputImage);
 
-    // Determina il tipo di memoria CUDA da utilizzare
+    checkGpuMem();
     CudaMemoryType memType = CudaMemoryType::CONSTANT_MEM;
 
 //    cudaFree(0);  // Inizializza il runtime CUDA
@@ -119,6 +111,7 @@ int main(int argc, char** argv) {
         testr.execTimes=elapsed;
         testr.num_iter= 1;
         testr.test_type=CUDA_CONSTANT_MEM;
+        testr.filter_type=kImgFilter.getName() ;
         testVectResultCUDA.push_back(testr);
         testVectResult.push_back(testr);
         std::string title="Risultati test CUDA CONSTANT_MEM";
@@ -147,6 +140,7 @@ int main(int argc, char** argv) {
         testr.execTimes=elapsed;
         testr.num_iter= 1;
         testr.test_type=CUDA_GLOBAL_MEM;
+        testr.filter_type=kImgFilter.getName() ;
         testVectResultCUDA.push_back(testr);
         testVectResult.push_back(testr);
         std::string title="Risultati test CUDA GLOBAL_MEM";
@@ -173,38 +167,45 @@ int main(int argc, char** argv) {
         testr.execTimes=elapsed;
         testr.num_iter= 1;
         testr.test_type=CUDA_SHARED_MEM;
+        testr.filter_type=kImgFilter.getName() ;
         testVectResultCUDA.push_back(testr);
         testVectResult.push_back(testr);
         std::string title="Risultati test CUDA SHARED_MEM";
         SplashResult(title,testVectResultCUDA);
     }
 
+
+    /*** Test Elaborazione OMP ***/
+    std::cout << "#########################" << std::endl;
+    std::cout << "### Test Elaborazione ###" << std::endl;
+    std::cout << "###   Versione OMP   ###" << std::endl;
+    std::cout << "#########################" << std::endl;
+
+    std::vector<ImgProc> outputsOpenMP;
     ImgProcOMP imgOMP(inputImage);
     int maxThreads = omp_get_max_threads();
     std::cout << "Numero massimo di thread disponibili: " << maxThreads << std::endl;
 
     // Test con diversi numeri di thread (potenze di 2)
     for (int numThreads = 2; numThreads <= maxThreads; numThreads *= 2) {
-        tend = std::chrono::high_resolution_clock::now();
+        tstart = std::chrono::high_resolution_clock::now();
         auto ompResult = imgOMP.applyFilter(kImgFilter, numThreads);
-        auto t6 = std::chrono::high_resolution_clock::now();
+        tend = std::chrono::high_resolution_clock::now();
         if (ompResult) {
             auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
             std::cout << "Tempo di esecuzione OpenMP (" << numThreads << " threads): "
                       << elapsed << " microsec" << std::endl;
 
-
-            std::string outputFileImagePath = outputdir + std::string("omp_") + kImgFilter.getName()+ img_ext;
-            imgCUDA.saveImageToFile(outputFileImagePath.c_str());
-
-
+            std::string outputFileImagePath = outputdir + std::string("omp_") + std::to_string(numThreads) +"_"+ kImgFilter.getName()+ img_ext;
             imgOMP.saveImageToFile(outputFileImagePath.c_str());
 
             std::vector<testResult> ompr;
             std::vector<testResult> testVectResultOMP;
             testr.execTimes=elapsed;
             testr.num_iter= 1;
+            testr.threadNum=numThreads;
             testr.test_type=PARALLEL;
+            testr.filter_type=kImgFilter.getName() ;
             testVectResultOMP.push_back(testr);
             testVectResult.push_back(testr);
             std::string title="Risultati testOMP";
@@ -212,8 +213,6 @@ int main(int argc, char** argv) {
 
         }
     }
-
-
 
     saveResultToFile(file_outPar,testVectResult);
 
