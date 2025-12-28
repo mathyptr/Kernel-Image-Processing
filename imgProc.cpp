@@ -65,7 +65,7 @@ bool ImgProc::saveImageToFile(const char* filepath) const {
 }
 
 
-std::vector<float> ImgProc::createPaddedImg(int paddingY, int paddingX) const {
+std::vector<float> ImgProc::buildPaddedImg(int paddingY, int paddingX) const {
     int paddedWidth = width + 2 * paddingX;
     int paddedHeight = height + 2 * paddingY;
     std::vector<float> padded(paddedWidth * paddedHeight);
@@ -95,89 +95,6 @@ std::vector<float> ImgProc::createPaddedImg(int paddingY, int paddingX) const {
 
     return padded;
 }
-
-/*
-bool ImgProc::ParallelFilter(
-        ImgProc& output, const kernelImgFilter& filter, const CudaMemoryType memType)
-{
-    int kernelSize = filter.getSize();
-    if (kernelSize > MAX_KERNEL_SIZE) {
-        std::cerr << "Dimensione kernel troppo grande" << std::endl;
-        return false;
-    }
-
-    int radius = kernelSize / 2;
-    auto padded = createPaddedImg(radius, radius);
-    int paddedWidth = width + 2 * radius;
-    int paddedHeight = height + 2 * radius;
-
-    float* d_input, * d_output, * d_kernel = nullptr;
-    cudaMalloc(&d_input, paddedWidth * paddedHeight * sizeof(float));
-    cudaMalloc(&d_output, width * height * sizeof(float));
-
-    cudaMemcpy(d_input, padded.data(),
-        paddedWidth * paddedHeight * sizeof(float),
-        cudaMemcpyHostToDevice);
-
-    dim3 blockSize(BLOCK_DIM_X, BLOCK_DIM_Y);
-    dim3 gridSize(
-        calcolaBlocchi(width, BLOCK_DIM_X),
-        calcolaBlocchi(height, BLOCK_DIM_Y)
-    );
-
-    if (memType == CudaMemoryType::GLOBAL_MEM) {
-        cudaMalloc(&d_kernel, kernelSize * kernelSize * sizeof(float));
-        cudaMemcpy(d_kernel, filter.getKernelData().data(),
-            kernelSize * kernelSize * sizeof(float),
-            cudaMemcpyHostToDevice);
-
-        processaImmagineGlobale << <gridSize, blockSize >> > (
-            d_input, d_output, d_kernel,
-            width, height, paddedWidth, paddedHeight,
-            kernelSize
-            );
-    }
-    else if (memType == CudaMemoryType::SHARED_MEM) {
-        cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),
-            kernelSize * kernelSize * sizeof(float));
-
-        processaImmagineShared<BLOCK_DIM_X> << <gridSize, blockSize >> > (
-            d_input, d_output,
-            width, height, paddedWidth, paddedHeight,
-            kernelSize
-            );
-    }
-    else {  // CONSTANT_MEM
-        cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),
-            kernelSize * kernelSize * sizeof(float));
-
-        processaImmagineConstante << <gridSize, blockSize >> > (
-            d_input, d_output,
-            width, height, paddedWidth, paddedHeight,
-            kernelSize
-            );
-    }
-
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        std::cerr << "Errore CUDA: " << cudaGetErrorString(error) << std::endl;
-        return false;
-    }
-
-    std::vector<float> result(width * height);
-    cudaMemcpy(result.data(), d_output,
-        width * height * sizeof(float),
-        cudaMemcpyDeviceToHost);
-
-
-    cudaFree(d_input);
-    cudaFree(d_output);
-    if (d_kernel) cudaFree(d_kernel);
-
-    output.setImageData(result, width, height);
-    return true;
-}
-*/
 
 int ImgProc::getWidth() const { return width; }
 int ImgProc::getHeight() const { return height; }

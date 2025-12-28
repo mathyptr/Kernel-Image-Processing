@@ -13,6 +13,7 @@
 #include "imgProc.h"
 #include "imgProcSeq.h"
 #include "imgProcCuda.h"
+#include "imgProcOMP.h"
 
 
 
@@ -60,7 +61,7 @@ int main(int argc, char** argv) {
     std::chrono::high_resolution_clock::time_point tend;
     bool cpuResult;
     tstart = std::chrono::high_resolution_clock::now();
-    cpuResult = imgSeq.applyFilterSequential(kImgFilter);
+    cpuResult = imgSeq.applyFilter(kImgFilter);
     tend = std::chrono::high_resolution_clock::now();
 
     if (cpuResult) {
@@ -105,7 +106,7 @@ int main(int argc, char** argv) {
     bool cudaResult;
 
     tstart = std::chrono::high_resolution_clock::now();
-    cudaResult = imgCUDA.ParallelFilter( kImgFilter, memType);
+    cudaResult = imgCUDA.applyFilter( kImgFilter, memType);
     tend = std::chrono::high_resolution_clock::now();
 
     if (cudaResult) {
@@ -132,7 +133,7 @@ int main(int argc, char** argv) {
 
 
     tstart = std::chrono::high_resolution_clock::now();
-    cudaResult = imgCUDA.ParallelFilter( kImgFilter, memType);
+    cudaResult = imgCUDA.applyFilter( kImgFilter, memType);
     tend = std::chrono::high_resolution_clock::now();
 
 
@@ -158,7 +159,7 @@ int main(int argc, char** argv) {
 
 
     tstart = std::chrono::high_resolution_clock::now();
-    cudaResult = imgCUDA.ParallelFilter( kImgFilter, memType);
+    cudaResult = imgCUDA.applyFilter( kImgFilter, memType);
     tend = std::chrono::high_resolution_clock::now();
 
 
@@ -177,6 +178,41 @@ int main(int argc, char** argv) {
         std::string title="Risultati test CUDA SHARED_MEM";
         SplashResult(title,testVectResultCUDA);
     }
+
+    ImgProcOMP imgOMP(inputImage);
+    int maxThreads = omp_get_max_threads();
+    std::cout << "Numero massimo di thread disponibili: " << maxThreads << std::endl;
+
+    // Test con diversi numeri di thread (potenze di 2)
+    for (int numThreads = 2; numThreads <= maxThreads; numThreads *= 2) {
+        tend = std::chrono::high_resolution_clock::now();
+        auto ompResult = imgOMP.applyFilter(kImgFilter, numThreads);
+        auto t6 = std::chrono::high_resolution_clock::now();
+        if (ompResult) {
+            auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
+            std::cout << "Tempo di esecuzione OpenMP (" << numThreads << " threads): "
+                      << elapsed << " microsec" << std::endl;
+
+
+            std::string outputFileImagePath = outputdir + std::string("omp_") + kImgFilter.getName()+ img_ext;
+            imgCUDA.saveImageToFile(outputFileImagePath.c_str());
+
+
+            imgOMP.saveImageToFile(outputFileImagePath.c_str());
+
+            std::vector<testResult> ompr;
+            std::vector<testResult> testVectResultOMP;
+            testr.execTimes=elapsed;
+            testr.num_iter= 1;
+            testr.test_type=PARALLEL;
+            testVectResultOMP.push_back(testr);
+            testVectResult.push_back(testr);
+            std::string title="Risultati testOMP";
+            SplashResult(title,testVectResultOMP);
+
+        }
+    }
+
 
 
     saveResultToFile(file_outPar,testVectResult);

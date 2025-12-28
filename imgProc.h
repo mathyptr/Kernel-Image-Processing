@@ -33,7 +33,7 @@ public:
   
     bool setImageData(const std::vector<float>& data, int width, int height);
 
-    std::vector<float> createPaddedImg(int paddingY, int paddingX) const;
+    std::vector<float> buildPaddedImg(int paddingY, int paddingX) const;
 
     std::vector<float> getImageData() const;
 

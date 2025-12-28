@@ -1,23 +1,22 @@
-#include "imgProcSeq.h"
-#include <png++/png.hpp>
+#include "imgProcOMP.h"
+#include <omp.h>
 #include <algorithm>
 #include <iostream>
+#include <png++/png.hpp>
 
 
-ImgProcSeq::ImgProcSeq(ImgProc& inputImage)  {
+ImgProcOMP::ImgProcOMP(ImgProc& inputImage){
     imgProcInput=inputImage;
-    height=imgProcInput.getHeight();
-    width=imgProcInput.getWidth();
+    width=inputImage.getWidth();
+    height=inputImage.getHeight();
 }
 
-
-ImgProcSeq::~ImgProcSeq() {
+ImgProcOMP::~ImgProcOMP() {
 
 }
 
-bool ImgProcSeq::applyFilter( const kernelImgFilter& filter)
+bool ImgProcOMP::applyFilter(const kernelImgFilter& filter, int numThreads)
 {
-
     int kernelSize = filter.getSize();
     int radius = kernelSize / 2;
     std::vector<float> kernel = filter.getKernelData();
@@ -25,13 +24,21 @@ bool ImgProcSeq::applyFilter( const kernelImgFilter& filter)
     auto padded = imgProcInput.buildPaddedImg(radius, radius);
 
     std::vector<float> result(width * height);
+
+    omp_set_num_threads(numThreads);
+
+
+#pragma omp parallel for collapse(2) schedule(dynamic)
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
+
             float sum = 0.0f;
+
             for (int ky = -radius; ky <= radius; ++ky) {
                 for (int kx = -radius; kx <= radius; ++kx) {
                     int px = x + kx + radius;
                     int py = y + ky + radius;
+
                     float pixelValue = padded[py * (width + 2 * radius) + px];
 
                     float kernelValue = kernel[(ky + radius) * kernelSize + (kx + radius)];
@@ -48,7 +55,8 @@ bool ImgProcSeq::applyFilter( const kernelImgFilter& filter)
     return true;
 }
 
-bool ImgProcSeq::saveImageToFile(const char* filepath) const {
+
+bool ImgProcOMP::saveImageToFile(const char* filepath) const {
     try {
         std::vector<float> imgData= imgProc.getImageData();
         png::image<png::gray_pixel> image(width, height);

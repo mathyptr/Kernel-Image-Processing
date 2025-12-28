@@ -123,7 +123,8 @@ __global__ void processaImmagineShared(
 
 ImgProcCuda::ImgProcCuda(ImgProc& inputImage) {
     imgProcInput=inputImage;
-
+    height=imgProcInput.getHeight();
+    width=imgProcInput.getWidth();
 }
 
 
@@ -152,42 +153,8 @@ bool ImgProcCuda::saveImageToFile(const char* filepath) const {
     }
 }
 
-/*
-std::vector<float> ImgProcCuda::createPaddedImg(int paddingY, int paddingX) const {
 
-    std::vector<float> imgData= imgProc.getImageData();
-    int paddedWidth = width + 2 * paddingX;
-    int paddedHeight = height + 2 * paddingY;
-    std::vector<float> padded(paddedWidth * paddedHeight);
-
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            padded[(y + paddingY) * paddedWidth + (x + paddingX)] =
-                    imgData[y * width + x];
-        }
-    }
-
-    for (int y = 0; y < paddingY; ++y) {
-        std::copy_n(&padded[paddingY * paddedWidth], width,
-            &padded[y * paddedWidth + paddingX]);
-        std::copy_n(&padded[(height + paddingY - 1) * paddedWidth], width,
-            &padded[(paddedHeight - y - 1) * paddedWidth + paddingX]);
-    }
-
-
-    for (int y = 0; y < paddedHeight; ++y) {
-        for (int x = 0; x < paddingX; ++x) {
-            padded[y * paddedWidth + x] = padded[y * paddedWidth + paddingX];
-            padded[y * paddedWidth + paddedWidth - 1 - x] =
-                padded[y * paddedWidth + paddedWidth - paddingX - 1];
-        }
-    }
-
-    return padded;
-}
-*/
-
-bool ImgProcCuda::ParallelFilter(const kernelImgFilter& filter, const CudaMemoryType memType)
+bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryType memType)
 {
     int kernelSize = filter.getSize();
     if (kernelSize > MAX_KERNEL_SIZE) {
@@ -196,10 +163,7 @@ bool ImgProcCuda::ParallelFilter(const kernelImgFilter& filter, const CudaMemory
     }
 
     int radius = kernelSize / 2;
-    auto padded = imgProcInput.createPaddedImg(radius, radius);
-
-    int height=imgProcInput.getHeight();
-    int width=imgProcInput.getWidth();
+    auto padded = imgProcInput.buildPaddedImg(radius, radius);
 
     int paddedWidth = width + 2 * radius;
     int paddedHeight = height + 2 * radius;
