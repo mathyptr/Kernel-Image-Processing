@@ -49,11 +49,12 @@ std::vector<float> kernelImgFilter::getKernelData() const {
 }
 
 
-bool kernelImgFilter::buildFilter(std::string filter) {
+bool kernelImgFilter::buildFilter(std::string filter,int kernel_size) {
     name=filter;
+    size=kernel_size;
     bool res=false;
     if (name == GAUSSIAN_FILTER_STR ) {
-        res=buildGaussian(7, 1.0f);  // Kernel 7x7, sigma=1.0
+        res=buildGaussian(1.0f);  // Kernel 7x7, sigma=1.0
     }
     else if (name == SHARPEN_FILTER_STR ) {
         res=buildSharp();
@@ -64,47 +65,55 @@ bool kernelImgFilter::buildFilter(std::string filter) {
     else if (name == LAPLACIAN_FILTER_STR ) {
         res=buildLaplacian();
     }
+    else if (name == IDENTITY_FILTER_STR ) {
+        res=buildIdentity();
+    }
     return res;
 }
 
 
-bool kernelImgFilter::Init(std::vector<float>& kernel, float centerValue, float surroundValue, int kernelSize) {
-    if (kernelSize % 2 == 0 || kernelSize < 3) {
+bool kernelImgFilter::Init(std::vector<float>& kernel, float centerValue, float surroundValue) {
+    if (size % 2 == 0 || size < 3) {
         std::cerr << "La dimensione kernel non è valida" << std::endl;
         return false;
     }
     for (auto it = begin (kernelData); it != end (kernelData); ++it)
         *it = surroundValue;
-    int mid=kernelSize / 2;
-    kernelData[mid + kernelSize*mid] = centerValue;
-
+    int mid=size / 2;
+    kernelData[size*size/2] = centerValue;
     return true;
 }
 
 bool kernelImgFilter::buildEdgeDetect() {
     std::cout << "Filtro edge detection...build..." << std::endl;
-    size = 3;
     kernelData.resize(size * size);
     for (auto it = begin (kernelData); it != end (kernelData); ++it)
         *it = EDGE_SURROUND;
 
-    kernelData[1 +  size] = EDGE_CENTER;
+    kernelData[size*size/2] = EDGE_CENTER;
+    return true;
+}
+
+bool kernelImgFilter::buildIdentity() {
+    std::cout << "Filtro Identity...build..." << std::endl;
+    kernelData.resize(size * size);
+    for (auto it = begin (kernelData); it != end (kernelData); ++it)
+        *it = 0;
+    kernelData[size*size/2] = 1;
     return true;
 }
 
 bool kernelImgFilter::buildSharp() {
     std::cout << "Filtro sharp...build..." << std::endl;
-    size = 3;
     kernelData.resize(size * size);
-
-    return Init(kernelData, SHARPEN_CENTER, SHARPEN_SURROUND, size);
+    return Init(kernelData, SHARPEN_CENTER, SHARPEN_SURROUND);
 }
 
 
-bool kernelImgFilter::buildGaussian(int kernelSize, float sigma) {
+bool kernelImgFilter::buildGaussian(float sigma) {
     std::cout << "Filtro gaussiano...build..." << std::endl;
 
-    if (kernelSize % 2 == 0 || kernelSize < 3) {
+    if (size % 2 == 0 || size < 3) {
         std::cerr << "Il Kernel deve avere una dimensione dispari e maggiore di 2" << std::endl;
         return false;
     }
@@ -114,7 +123,6 @@ bool kernelImgFilter::buildGaussian(int kernelSize, float sigma) {
         return false;
     }
 
-    size = kernelSize;
     kernelData.resize(size * size);
     float sum = 0.0f;
 
@@ -144,7 +152,7 @@ bool kernelImgFilter::buildGaussian(int kernelSize, float sigma) {
 
 bool kernelImgFilter::buildLaplacian() {
     std::cout << "Filtro Laplaciano...build..." << std::endl;
-    size = 3;
+;
     kernelData.resize(size * size);
 
     // Inizializza tutti gli elementi a -1
@@ -152,13 +160,13 @@ bool kernelImgFilter::buildLaplacian() {
         *it = LAPLACE_SURROUND;
 
     // Imposta il valore centrale
-    kernelData[4] = LAPLACE_CENTER;  // indice centrale in una matrice 3x3
+    kernelData[size*size/2] = LAPLACE_CENTER;  // indice centrale in una matrice 3x3
 
     // Imposta gli angoli a 0 per ridurre la sensibilità al rumore
     kernelData[0] = 0.0f;  // alto-sinistra
-    kernelData[2] = 0.0f;  // alto-destra
-    kernelData[6] = 0.0f;  // basso-sinistra
-    kernelData[8] = 0.0f;  // basso-destra
+    kernelData[size-1] = 0.0f;  // alto-destra
+    kernelData[size*size-size] = 0.0f;  // basso-sinistra
+    kernelData[size*size-1] = 0.0f;  // basso-destra
 
     return true;
 }

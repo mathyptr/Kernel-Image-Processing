@@ -23,7 +23,7 @@ public:
         std::vector<float>().swap(kernelData);
     }
     std::string name;
-    bool buildFilter(std::string filter);
+    bool buildFilter(std::string filter, int kernel_size);
 
     void display() const;
     std::string getName() const;
@@ -33,13 +33,13 @@ public:
 
 private:
 
-    bool Init(std::vector<float>& kernel, float centerValue, float surroundValue, int size);
+    bool Init(std::vector<float>& kernel, float centerValue, float surroundValue);
+    bool buildIdentity();
     bool buildEdgeDetect();
     bool buildSharp();
-    bool buildGaussian(int size, float sigma);
+    bool buildGaussian(float sigma);
     bool buildLaplacian();
-
-    std::vector<float> kernelData;  
+    std::vector<float> kernelData;
     int size;                       
 };
 

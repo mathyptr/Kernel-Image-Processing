@@ -80,6 +80,7 @@ __global__ void processSharedMem(
     int kernelSize)
 {
     __shared__ float sharedMem[BLOCK_SIZE + 24][BLOCK_SIZE + 24];
+//    __shared__ float sharedMem[BLOCK_SIZE][BLOCK_SIZE];
 
     const int radius = kernelSize / 2;
     const int tx = threadIdx.x;
@@ -99,15 +100,21 @@ __global__ void processSharedMem(
         }
     }
 
-
     __syncthreads();
 
     if (x < width && y < height) {
         float sum = 0.0f;
         for (int ky = -radius; ky <= radius; ky++) {
             for (int kx = -radius; kx <= radius; kx++) {
-                float pixelValue = sharedMem[ty + radius + ky][tx + radius + kx];
+/*                float pixelValue = sharedMem[ty + radius + ky][tx + radius + kx];
                 float kernelValue = d_filterKernel[(ky + radius) * kernelSize + (kx + radius)];
+*/
+                int px = tx + kx + radius;
+                int py = ty + ky + radius;
+                float pixelValue = sharedMem[px][py];
+                float kernelValue = d_filterKernel[(ky + radius) * kernelSize + (kx + radius)];
+
+
                 sum += pixelValue * kernelValue;
             }
         }
@@ -115,8 +122,8 @@ __global__ void processSharedMem(
         sum = fmaxf(0.0f, fminf(sum, 255.0f));
         d_output[y * width + x] = sum;
     }
-}
 
+}
 
 ImgProcCuda::ImgProcCuda(ImgProc& inputImage) {
     imgProcInput=inputImage;
@@ -150,9 +157,7 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
         cudaFree(d_input);
         return false;
     }
-    cudaMemcpy(d_input, padded.data(),
-        paddedWidth * paddedHeight * sizeof(float),
-        cudaMemcpyHostToDevice);
+    cudaMemcpy(d_input, padded.data(),paddedWidth * paddedHeight * sizeof(float),cudaMemcpyHostToDevice);
 
     dim3 blockSize(BLOCK_DIM_X, BLOCK_DIM_Y);
     dim3 gridSize(
@@ -160,15 +165,21 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
         calcolaBlocchi(height, BLOCK_DIM_Y)
     );
 
+
+    dim3 blockSize1(BLOCK_DIM_X, BLOCK_DIM_Y);
+    dim3 gridSize1(
+            calcolaBlocchi(width, BLOCK_DIM_X),
+            calcolaBlocchi(height, BLOCK_DIM_Y)
+    );
+
+
     if (memType == CudaMemoryType::GLOBAL_MEM) {
         if(cudaMalloc(&d_kernel, kernelSize * kernelSize * sizeof(float))!=cudaSuccess) {
             cudaFree(d_input);
             cudaFree(d_output);
             return false;
         }
-        cudaMemcpy(d_kernel, filter.getKernelData().data(),
-            kernelSize * kernelSize * sizeof(float),
-            cudaMemcpyHostToDevice);
+        cudaMemcpy(d_kernel, filter.getKernelData().data(),kernelSize * kernelSize * sizeof(float),cudaMemcpyHostToDevice);
 
         processGlobalMem <<<gridSize, blockSize >>> (
             d_input, d_output, d_kernel,
@@ -176,26 +187,25 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
             kernelSize
             );
     }
-    else if (memType == CudaMemoryType::SHARED_MEM) {
-        cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),
-            kernelSize * kernelSize * sizeof(float));
+    else if (memType == CudaMemoryType::CONSTANT_MEM) {
+        cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),kernelSize * kernelSize * sizeof(float));
 
+        processConstantMem <<<gridSize, blockSize >>> (
+                d_input, d_output,
+                width, height, paddedWidth, paddedHeight,
+                kernelSize
+                );
+    }
+    else if (memType == CudaMemoryType::SHARED_MEM) {
+        cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),kernelSize * kernelSize * sizeof(float));
         processSharedMem<BLOCK_DIM_X> <<<gridSize, blockSize >>> (
             d_input, d_output,
             width, height, paddedWidth, paddedHeight,
             kernelSize
             );
     }
-    else {  // CONSTANT_MEM
-        cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),
-            kernelSize * kernelSize * sizeof(float));
-
-        processConstantMem <<<gridSize, blockSize >>> (
-            d_input, d_output,
-            width, height, paddedWidth, paddedHeight,
-            kernelSize
-            );
-    }
+    else
+        return false;
 
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -204,10 +214,7 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
     }
 
     std::vector<float> result(width * height);
-    cudaMemcpy(result.data(), d_output,
-        width * height * sizeof(float),
-        cudaMemcpyDeviceToHost);
-
+    cudaMemcpy(result.data(), d_output,width * height * sizeof(float),cudaMemcpyDeviceToHost);
 
     cudaFree(d_input);
     cudaFree(d_output);

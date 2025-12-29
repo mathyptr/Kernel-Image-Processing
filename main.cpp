@@ -5,8 +5,7 @@
 
 #include <omp.h>
 
-#include <cuda.h>
-#include <cuda_runtime.h>
+
 #include <cuda_runtime_api.h>
 
 #include "util.h"
@@ -28,14 +27,15 @@ int main(int argc, char** argv) {
     std::string img_ext=".png";
     kernelImgFilter kImgFilter;
 
-    std::cout << "Directory corrente: " << filesystem::current_path() << '\n';
+    std::cout << "Directory corrente: " << filesystem::current_path()  << std::endl;
 
     std::string  filter;
     filter=chooseFilter();
-    kImgFilter.buildFilter(filter);
+    int size=chooseKernelSize();
+    kImgFilter.buildFilter(filter,size);
 
     // Visualizza il kernel del filtro selezionato
-    std::cout << "\nFiltro da applicare: " << kImgFilter.getName() << std::endl;
+    std::cout << "Filtro da applicare: " << kImgFilter.getName() << std::endl;
     kImgFilter.display();
 
     // Load immagine
@@ -64,15 +64,13 @@ int main(int argc, char** argv) {
 
     if (cpuResult) {
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
-        std::cout << "Tempo di esecuzione CPU: " << elapsed << " microsec" << std::endl;
         std::string outputFileImgaePath = outputdir + std::string("cpu_") + kImgFilter.getName()+ img_ext;
         imgSeq.saveImageToFile(outputFileImgaePath.c_str());
-
         std::vector<testResult> testVectResultSEQ;
         testr.execTimes=elapsed;
-        testr.num_iter= 1;
         testr.test_type=SEQUENTIAL;
         testr.filter_type=kImgFilter.getName() ;
+        testr.kernel_size= kImgFilter.getSize();
         testVectResultSEQ.push_back(testr);
         testVectResult.push_back(testr);
         std::string title="Risultati test Sequenziali";
@@ -89,11 +87,8 @@ int main(int argc, char** argv) {
 
 
     ImgProcCuda imgCUDA(inputImage);
-
     checkGpuMem();
     CudaMemoryType memType = CudaMemoryType::CONSTANT_MEM;
-
-//    cudaFree(0);  // Inizializza il runtime CUDA
 
     bool cudaResult;
 
@@ -103,44 +98,35 @@ int main(int argc, char** argv) {
 
     if (cudaResult) {
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
-        std::cout << "Tempo di esecuzione CUDA: " << elapsed << " microsec" << std::endl;
         std::string outputFileImagePath = outputdir + std::string("cuda_CONSTANT_MEM_") + kImgFilter.getName()+ img_ext;
         imgCUDA.saveImageToFile(outputFileImagePath.c_str());
         std::vector<testResult> cudar;
         std::vector<testResult> testVectResultCUDA;
         testr.execTimes=elapsed;
-        testr.num_iter= 1;
         testr.test_type=CUDA_CONSTANT_MEM;
         testr.filter_type=kImgFilter.getName() ;
+        testr.kernel_size= kImgFilter.getSize();
         testVectResultCUDA.push_back(testr);
         testVectResult.push_back(testr);
         std::string title="Risultati test CUDA CONSTANT_MEM";
         SplashResult(title,testVectResultCUDA);
     }
 
-
-
     memType = CudaMemoryType::GLOBAL_MEM;
-
-//    cudaFree(0);  // Inizializza il runtime CUDA
-
-
     tstart = std::chrono::high_resolution_clock::now();
     cudaResult = imgCUDA.applyFilter( kImgFilter, memType);
     tend = std::chrono::high_resolution_clock::now();
 
-
     if (cudaResult) {
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
-        std::cout << "Tempo di esecuzione CUDA: " << elapsed << " microsec" << std::endl;
         std::string outputFileImagePath = outputdir + std::string("cuda_GLOBAL_MEM_") + kImgFilter.getName()+ img_ext;
         imgCUDA.saveImageToFile(outputFileImagePath.c_str());
         std::vector<testResult> cudar;
         std::vector<testResult> testVectResultCUDA;
         testr.execTimes=elapsed;
-        testr.num_iter= 1;
         testr.test_type=CUDA_GLOBAL_MEM;
         testr.filter_type=kImgFilter.getName() ;
+        testr.kernel_size= kImgFilter.getSize();
         testVectResultCUDA.push_back(testr);
         testVectResult.push_back(testr);
         std::string title="Risultati test CUDA GLOBAL_MEM";
@@ -148,26 +134,20 @@ int main(int argc, char** argv) {
     }
 
     memType = CudaMemoryType::SHARED_MEM;
-
-//    cudaFree(0);  // Inizializza il runtime CUDA
-
-
     tstart = std::chrono::high_resolution_clock::now();
     cudaResult = imgCUDA.applyFilter( kImgFilter, memType);
     tend = std::chrono::high_resolution_clock::now();
 
-
     if (cudaResult) {
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
-        std::cout << "Tempo di esecuzione CUDA: " << elapsed << " microsec" << std::endl;
         std::string outputFileImagePath = outputdir + std::string("cuda_SHARED_MEM_") + kImgFilter.getName()+ img_ext;
         imgCUDA.saveImageToFile(outputFileImagePath.c_str());
         std::vector<testResult> cudar;
         std::vector<testResult> testVectResultCUDA;
         testr.execTimes=elapsed;
-        testr.num_iter= 1;
         testr.test_type=CUDA_SHARED_MEM;
         testr.filter_type=kImgFilter.getName() ;
+        testr.kernel_size= kImgFilter.getSize();
         testVectResultCUDA.push_back(testr);
         testVectResult.push_back(testr);
         std::string title="Risultati test CUDA SHARED_MEM";
@@ -193,19 +173,15 @@ int main(int argc, char** argv) {
         tend = std::chrono::high_resolution_clock::now();
         if (ompResult) {
             auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
-            std::cout << "Tempo di esecuzione OpenMP (" << numThreads << " threads): "
-                      << elapsed << " microsec" << std::endl;
-
             std::string outputFileImagePath = outputdir + std::string("omp_") + std::to_string(numThreads) +"_"+ kImgFilter.getName()+ img_ext;
             imgOMP.saveImageToFile(outputFileImagePath.c_str());
-
             std::vector<testResult> ompr;
             std::vector<testResult> testVectResultOMP;
             testr.execTimes=elapsed;
-            testr.num_iter= 1;
             testr.threadNum=numThreads;
             testr.test_type=PARALLEL;
             testr.filter_type=kImgFilter.getName() ;
+            testr.kernel_size= kImgFilter.getSize();
             testVectResultOMP.push_back(testr);
             testVectResult.push_back(testr);
             std::string title="Risultati testOMP";

@@ -34,9 +34,10 @@ std::string  chooseFilter() {
         cout << "#2. SHARPEN_FILTER   #"<< endl;
         cout << "#3. GAUSSIAN_FILTER  #"<< endl;
         cout << "#4. LAPLACIAN_FILTER #"<< endl;
+        cout << "#5. IDENTITY_FILTER  #"<< endl;
         cout << "######################"<< endl;
         cin >> filter;
-        if (filter >= 1 && filter <=4)
+        if (filter >= 1 && filter <=N_FILTER)
             choice=true;
         else
             cout << "Scelta non valida. Riprova di nuovo."<< endl;
@@ -50,10 +51,42 @@ std::string  chooseFilter() {
         filter_str=GAUSSIAN_FILTER_STR;
     else if (filter==LAPLACIAN_FILTER)
         filter_str=LAPLACIAN_FILTER_STR;
+    else if (filter==IDENTITY_FILTER)
+        filter_str=IDENTITY_FILTER_STR;
     else
         filter_str="err";
     return filter_str;
 }
+
+int  chooseKernelSize() {
+
+    cout << endl<<"######################"<< endl;
+    cout << "   Scegli un filtro"<< endl;
+
+    int filter_size=0;
+    bool choice=false;
+    while (!choice) {
+        cout << "###############"<< endl;
+        cout << "#1. 3x3       #"<< endl;
+        cout << "#2. 5x5       #"<< endl;
+        cout << "###############"<< endl;
+        cin >> filter_size;
+        if (filter_size >= 1 && filter_size <=N_FILTER_SIZE)
+            choice=true;
+        else
+            cout << "Scelta non valida. Riprova di nuovo."<< endl;
+    }
+    int size=0;
+    std::string filter_str;
+    if(filter_size==size_3x3)
+        size=size_3x3_value;
+    else if (filter_size==size_5x5)
+        size=size_5x5_value;
+    else
+        size=0;
+    return size;
+}
+
 
 void SplashResult(string& title,std::vector<testResult>& result) {
     cout << "#####################################"<<endl;
@@ -74,8 +107,10 @@ void SplashResult(string& title,std::vector<testResult>& result) {
         else
             cout<<"TEST TYPE NON DEFINITO"<< endl;
 
-        cout << "Numero di Iterazioni: "<<res.num_iter<< endl;
-        cout << "Tempo di esecuzione: "<<res.execTimes<< endl;
+        cout << "Tipo filtro: "<< res.filter_type << endl;
+        cout << "Kernel size : "<< res.kernel_size << endl;
+        cout << "Numero Thread : "<< res.threadNum << endl;
+        cout << "Tempo di esecuzione: "<< res.execTimes<< endl;
         cout << "#####################################"<<endl;
     }
 }
@@ -83,7 +118,7 @@ void SplashResult(string& title,std::vector<testResult>& result) {
 
 void saveResultToFile(const std::string& filename,std::vector<testResult>& result) {
     std::ofstream fileCSV(filename);
-    fileCSV << "testType,filterType,numThreads,execTimes,num_iter"<< endl;
+    fileCSV << "testType,filterType,kernelsize,numThreads,execTimes"<< endl;
 
     for (const auto& res : result) {
         if( res.test_type==SEQUENTIAL)
@@ -99,9 +134,9 @@ void saveResultToFile(const std::string& filename,std::vector<testResult>& resul
         else
             fileCSV<<"NON_DEFINITO,";
         fileCSV << res.filter_type <<",";
+        fileCSV << res.kernel_size <<",";
         fileCSV << res.threadNum <<",";
-        fileCSV << res.execTimes << ",";
-        fileCSV << res.num_iter << endl;
+        fileCSV << res.execTimes <<  endl;
     }
 }
 
