@@ -5,7 +5,6 @@
 #include <string>
 
 
-constexpr float SHARPEN_CENTER = 9.0f;
 constexpr float SHARPEN_SURROUND = -1.0f;
 
 constexpr float EDGE_CENTER = 8.0f;

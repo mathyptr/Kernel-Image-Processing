@@ -39,6 +39,7 @@ struct testResult {
 void SplashScreen();
 std::string  chooseFilter();
 int  chooseKernelSize();
+bool  insertFileName();
 void SplashResult(string& title,std::vector<testResult>& result);
 void saveResultToFile(const std::string& filename,std::vector<testResult>& result);
 void checkGpuMem();

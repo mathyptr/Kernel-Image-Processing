@@ -87,6 +87,31 @@ int  chooseKernelSize() {
     return size;
 }
 
+bool  insertFileName() {
+
+    cout << endl;
+    cout << "########################################################################"<< endl;
+    cout << "Scegli se fornire un file immmagine oppure se utilizzare il file di test"<< endl;
+    cout << "########################################################################"<< endl;
+    bool inputfileimage=false;
+    int choice=0;
+    while (choice!=1 && choice!=2) {
+        cout << "##################"<< endl;
+        cout << "#1. Input File   #"<< endl;
+        cout << "#2. File di test #"<< endl;
+        cout << "##################"<< endl;
+        cin >> choice;
+        if (choice == 1 )
+            inputfileimage=true;
+        else if(choice ==2)
+            inputfileimage=false;
+        else
+            cout << "Scelta non valida. Riprova di nuovo."<< endl;
+    }
+    return inputfileimage;
+}
+
+
 
 void SplashResult(string& title,std::vector<testResult>& result) {
     cout << "#####################################"<<endl;

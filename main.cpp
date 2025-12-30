@@ -21,14 +21,22 @@ int main(int argc, char** argv) {
 
     SplashScreen();
     std::string Filter="gaussian";
-    std::string imagePath = "./input/peperoni1024.png";
+    std::string imageFilePathTest = "./input/peperoni1024.png";
+    std::string imageFilePath ="";
     std::string outputdir="./output/";
     std::string file_outPar = "./output/resultPAR.csv";
     std::string img_ext=".png";
+    std::string fileout_suffix="";
     kernelImgFilter kImgFilter;
 
     std::cout << "Directory corrente: " << filesystem::current_path()  << std::endl;
 
+    if(insertFileName()){
+        cout << "Inserisci il nome file immmagine comprensivo di estensione e percorso"<< endl;
+        std::cin >> imageFilePath;
+    }
+    else
+        imageFilePath=imageFilePathTest;
     std::string  filter;
     filter=chooseFilter();
     int size=chooseKernelSize();
@@ -38,10 +46,13 @@ int main(int argc, char** argv) {
     std::cout << "Filtro da applicare: " << kImgFilter.getName() << std::endl;
     kImgFilter.display();
 
+
+    fileout_suffix="_"+kImgFilter.getName()+std::to_string(kImgFilter.getSize())+"x"+std::to_string(kImgFilter.getSize())+img_ext;
+
     // Load immagine
     ImgProc inputImage;
-    if (!inputImage.loadImageFromFile(imagePath.c_str())) {
-        std::cerr << "Errore nella lettura dell'immagine sorgente: " << imagePath << std::endl;
+    if (!inputImage.loadImageFromFile(imageFilePath.c_str())) {
+        std::cerr << "Errore nella lettura dell'immagine sorgente: " << imageFilePath << std::endl;
         return 1;
     }
 
@@ -64,7 +75,7 @@ int main(int argc, char** argv) {
 
     if (cpuResult) {
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
-        std::string outputFileImgaePath = outputdir + std::string("cpu_") + kImgFilter.getName()+ img_ext;
+        std::string outputFileImgaePath = outputdir + std::string("cpu") + fileout_suffix;
         imgSeq.saveImageToFile(outputFileImgaePath.c_str());
         std::vector<testResult> testVectResultSEQ;
         testr.execTimes=elapsed;
@@ -98,7 +109,7 @@ int main(int argc, char** argv) {
 
     if (cudaResult) {
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
-        std::string outputFileImagePath = outputdir + std::string("cuda_CONSTANT_MEM_") + kImgFilter.getName()+ img_ext;
+        std::string outputFileImagePath = outputdir + std::string("cuda_CONSTANT_MEM") + fileout_suffix;
         imgCUDA.saveImageToFile(outputFileImagePath.c_str());
         std::vector<testResult> cudar;
         std::vector<testResult> testVectResultCUDA;
@@ -119,7 +130,7 @@ int main(int argc, char** argv) {
 
     if (cudaResult) {
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
-        std::string outputFileImagePath = outputdir + std::string("cuda_GLOBAL_MEM_") + kImgFilter.getName()+ img_ext;
+        std::string outputFileImagePath = outputdir + std::string("cuda_GLOBAL_MEM") + fileout_suffix;
         imgCUDA.saveImageToFile(outputFileImagePath.c_str());
         std::vector<testResult> cudar;
         std::vector<testResult> testVectResultCUDA;
@@ -140,7 +151,7 @@ int main(int argc, char** argv) {
 
     if (cudaResult) {
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
-        std::string outputFileImagePath = outputdir + std::string("cuda_SHARED_MEM_") + kImgFilter.getName()+ img_ext;
+        std::string outputFileImagePath = outputdir + std::string("cuda_SHARED_MEM") + fileout_suffix;
         imgCUDA.saveImageToFile(outputFileImagePath.c_str());
         std::vector<testResult> cudar;
         std::vector<testResult> testVectResultCUDA;
@@ -173,7 +184,7 @@ int main(int argc, char** argv) {
         tend = std::chrono::high_resolution_clock::now();
         if (ompResult) {
             auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(tend - tstart).count();
-            std::string outputFileImagePath = outputdir + std::string("omp_") + std::to_string(numThreads) +"_"+ kImgFilter.getName()+ img_ext;
+            std::string outputFileImagePath = outputdir + std::string("omp_") + std::to_string(numThreads) +fileout_suffix;
             imgOMP.saveImageToFile(outputFileImagePath.c_str());
             std::vector<testResult> ompr;
             std::vector<testResult> testVectResultOMP;

@@ -8,18 +8,22 @@
 
 #include <algorithm>
 
-#define BLOCK_DIM_X 16
-#define BLOCK_DIM_Y 16
-
+#define BLOCK_DIM_X 5
+#define BLOCK_DIM_Y 5
+#define BLOCK_SIZE BLOCK_DIM_X
 
 #define MAX_KERNEL_SIZE 25
 
 
 __device__ __constant__ float d_filterKernel[MAX_KERNEL_SIZE * MAX_KERNEL_SIZE];
 
-unsigned int calcolaBlocchi(unsigned int total, unsigned int blockSize) {
+/*unsigned int calcolaBlocchi(unsigned int total, unsigned int blockSize) {
     return (total + blockSize - 1) / blockSize;
+}*/
+unsigned int calcolaBlocchi(unsigned int total, unsigned int blockSize) {
+    return ceil(total/ blockSize);
 }
+
 
 __global__ void processGlobalMem(
     float* padded, float* d_output, float* kernel,
@@ -73,11 +77,11 @@ __global__ void processConstantMem(
     d_output[y * width + x] = sum;
 }
 
-template<int BLOCK_SIZE>
-__global__ void processSharedMem(
-    float* d_input, float* d_output,
-    int width, int height, int paddedWidth, int paddedHeight,
-    int kernelSize)
+
+__global__ void processSharedMemok(
+        float* d_input, float* d_output,
+        int width, int height, int paddedWidth, int paddedHeight,
+        int kernelSize)
 {
     __shared__ float sharedMem[BLOCK_SIZE + 24][BLOCK_SIZE + 24];
 //    __shared__ float sharedMem[BLOCK_SIZE][BLOCK_SIZE];
@@ -95,7 +99,7 @@ __global__ void processSharedMem(
 
             if (srcY >= 0 && srcY < paddedHeight && srcX >= 0 && srcX < paddedWidth) {
                 sharedMem[ty + dy * BLOCK_SIZE][tx + dx * BLOCK_SIZE] =
-                    d_input[srcY * paddedWidth + srcX];
+                        d_input[srcY * paddedWidth + srcX];
             }
         }
     }
@@ -106,9 +110,9 @@ __global__ void processSharedMem(
         float sum = 0.0f;
         for (int ky = -radius; ky <= radius; ky++) {
             for (int kx = -radius; kx <= radius; kx++) {
-/*                float pixelValue = sharedMem[ty + radius + ky][tx + radius + kx];
-                float kernelValue = d_filterKernel[(ky + radius) * kernelSize + (kx + radius)];
-*/
+//                float pixelValue = sharedMem[ty + radius + ky][tx + radius + kx];
+//                float kernelValue = d_filterKernel[(ky + radius) * kernelSize + (kx + radius)];
+
                 int px = tx + kx + radius;
                 int py = ty + ky + radius;
                 float pixelValue = sharedMem[px][py];
@@ -124,6 +128,103 @@ __global__ void processSharedMem(
     }
 
 }
+
+__global__ void processSharedMem(
+        float* d_input, float* d_output,
+        int width, int height, int paddedWidth, int paddedHeight,
+        int kernelSize)
+{
+    int blockSize=kernelSize;
+//    int blockSize=BLOCK_SIZE;
+//    __shared__ float sharedMem[BLOCK_SIZE +1][BLOCK_SIZE +1];
+    __shared__ float sharedMem[BLOCK_SIZE][BLOCK_SIZE];
+
+    const int tx = threadIdx.x;
+    const int ty = threadIdx.y;
+    const int x = blockIdx.x * blockSize + tx;
+    const int y = blockIdx.y * blockSize + ty;
+
+    if (y >= 0 && y < paddedHeight && x >= 0 && x < paddedWidth)
+       sharedMem[ty][tx] =  d_input[y * paddedWidth + x];
+
+    __syncthreads();
+
+    if (x < width && y < height) {
+        float sum = 0.0f;
+        for (int ky = 0; ky < kernelSize; ky++) {
+            for (int kx = 0; kx < kernelSize; kx++) {
+
+//                int px = tx + kx ;
+//                int py = ty + ky ;
+//                float pixelValue = sharedMem[py][px];
+                float pixelValue = sharedMem[ky][kx];
+                float kernelValue = d_filterKernel[ky * kernelSize +kx ];
+                sum += pixelValue * kernelValue;
+            }
+        }
+
+        sum = fmaxf(0.0f, fminf(sum, 255.0f));
+        d_output[y * width + x] = sum;
+//        d_output[y * width + x] = sharedMem[ty ][tx ] ;
+    }
+
+}
+
+
+__global__ void processSharedMem2(
+        float* d_input, float* d_output,
+        int width, int height, int paddedWidth, int paddedHeight,
+        int kernelSize)
+{
+//    __shared__ float sharedMem[BLOCK_SIZE + 24][BLOCK_SIZE + 24];
+    __shared__ float sharedMem[BLOCK_SIZE][BLOCK_SIZE];
+
+    const int radius = kernelSize / 2;
+    const int tx = threadIdx.x;
+    const int ty = threadIdx.y;
+    const int x = blockIdx.x * blockDim.x + tx;
+    const int y = blockIdx.y * blockDim.y + ty;
+
+    sharedMem[ty ][tx] = d_input[x+ paddedWidth*y];
+
+
+    __syncthreads();
+
+    //if (x < width && y < height)
+    {
+        float sum = 0.0f;
+//        for (int dy = 0; dy < BLOCK_SIZE; dy++)
+        {
+//            for (int dx = 0; dx < BLOCK_SIZE ; dx++)
+            {
+
+/*                int px = tx + dx + radius;
+                int py = ty + dy + radius;
+                float pixelValue = sharedMem[px][py];
+                float kernelValue = d_filterKernel[(dy + radius) * kernelSize + (dx + radius)];
+*/
+                //d_output[(dy+blockIdx.y * blockDim.y) * paddedWidth + dx+blockIdx.x * blockDim.x] = sharedMem[dy][dx];
+                int col = threadIdx.x + blockDim.x * blockIdx.x;
+                int row = threadIdx.y + blockDim.y * blockIdx.y;
+                int index=col+row*paddedWidth;
+                d_output[y * width + x] = sharedMem[ty ][tx ] ;
+
+/*                col = threadIdx.x + blockDim.x * blockIdx.x;
+                row = threadIdx.y + blockDim.y * blockIdx.y;
+                d_output[threadIdx.y+blockIdx.y*blockDim.y*paddedWidth+threadIdx.x+blockIdx.x*blockDim.x]  =
+                d_input[threadIdx.y+blockIdx.y*blockDim.y*paddedWidth+threadIdx.x+blockIdx.x*blockDim.x];
+*/
+/*                const int tx = threadIdx.x;
+                const int ty = threadIdx.y;
+                const int x = blockIdx.x * BLOCK_SIZE + tx;
+                const int y = blockIdx.y * BLOCK_SIZE + ty;
+                d_output[y* paddedWidth + x] = d_input[y * paddedWidth + x];*/
+            }
+        }
+    }
+
+}
+
 
 ImgProcCuda::ImgProcCuda(ImgProc& inputImage) {
     imgProcInput=inputImage;
@@ -150,6 +251,13 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
     int paddedWidth = width + 2 * radius;
     int paddedHeight = height + 2 * radius;
 
+    dim3 blockSize(BLOCK_DIM_X, BLOCK_DIM_Y);
+    dim3 gridSize(
+            calcolaBlocchi(width, BLOCK_DIM_X),
+            calcolaBlocchi(height, BLOCK_DIM_Y)
+    );
+
+
     float* d_input, * d_output, * d_kernel = nullptr;
     if(cudaMalloc(&d_input, paddedWidth * paddedHeight * sizeof(float))!=cudaSuccess)
         return false;
@@ -158,20 +266,6 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
         return false;
     }
     cudaMemcpy(d_input, padded.data(),paddedWidth * paddedHeight * sizeof(float),cudaMemcpyHostToDevice);
-
-    dim3 blockSize(BLOCK_DIM_X, BLOCK_DIM_Y);
-    dim3 gridSize(
-        calcolaBlocchi(width, BLOCK_DIM_X),
-        calcolaBlocchi(height, BLOCK_DIM_Y)
-    );
-
-
-    dim3 blockSize1(BLOCK_DIM_X, BLOCK_DIM_Y);
-    dim3 gridSize1(
-            calcolaBlocchi(width, BLOCK_DIM_X),
-            calcolaBlocchi(height, BLOCK_DIM_Y)
-    );
-
 
     if (memType == CudaMemoryType::GLOBAL_MEM) {
         if(cudaMalloc(&d_kernel, kernelSize * kernelSize * sizeof(float))!=cudaSuccess) {
@@ -198,11 +292,24 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
     }
     else if (memType == CudaMemoryType::SHARED_MEM) {
         cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),kernelSize * kernelSize * sizeof(float));
-        processSharedMem<BLOCK_DIM_X> <<<gridSize, blockSize >>> (
+/*        processSharedMem<BLOCK_DIM_X> <<<gridSize, blockSize >>> (
             d_input, d_output,
             width, height, paddedWidth, paddedHeight,
             kernelSize
             );
+            */
+        /*processSharedMem <<<gridSize, blockSize >>> (
+                d_input, d_output,
+                width, height, paddedWidth, paddedHeight,
+                kernelSize
+        );*/
+//        processSharedMem <<<gridSize, blockSize >>> (
+        processSharedMem <<<gridSize, blockSize >>> (
+                d_input, d_output,
+                width, height, paddedWidth, paddedHeight,
+                kernelSize
+        );
+
     }
     else
         return false;

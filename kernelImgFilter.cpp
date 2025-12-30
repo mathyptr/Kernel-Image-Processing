@@ -106,7 +106,7 @@ bool kernelImgFilter::buildIdentity() {
 bool kernelImgFilter::buildSharp() {
     std::cout << "Filtro sharp...build..." << std::endl;
     kernelData.resize(size * size);
-    return Init(kernelData, SHARPEN_CENTER, SHARPEN_SURROUND);
+    return Init(kernelData, size * size, SHARPEN_SURROUND);
 }
 
 
