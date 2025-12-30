@@ -90,7 +90,8 @@ bool kernelImgFilter::buildEdgeDetect() {
     for (auto it = begin (kernelData); it != end (kernelData); ++it)
         *it = EDGE_SURROUND;
 
-    kernelData[size*size/2] = EDGE_CENTER;
+//    kernelData[size*size/2] = EDGE_CENTER;
+    kernelData[size*size/2] = size*size-1;
     return true;
 }
 
