@@ -21,7 +21,8 @@ int main(int argc, char** argv) {
 
     SplashScreen();
     std::string Filter="gaussian";
-    std::string imageFilePathTest = "./input/peperoni1024.png";
+//    std::string imageFilePathTest = "./input/peperoni256.png";
+    std::string imageFilePathTest = "./input/test1024.png";
     std::string imageFilePath ="";
     std::string outputdir="./output/";
     std::string file_outPar = "./output/resultPAR.csv";
