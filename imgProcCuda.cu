@@ -176,7 +176,6 @@ __global__ void processSharedMem(
 //          d_output[y * width + x] = sharedMem[ty+radius ][tx+radius ] ;
     }
 
-
 }
 
 __global__ void processSharedMem3(
