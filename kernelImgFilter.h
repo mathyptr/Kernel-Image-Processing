@@ -10,8 +10,17 @@ constexpr float SHARPEN_SURROUND = -1.0f;
 constexpr float EDGE_CENTER = 8.0f;
 constexpr float EDGE_SURROUND = -1.0f;
 
-constexpr float LAPLACE_CENTER = 4.0f;
-constexpr float LAPLACE_SURROUND = -1.0f;
+
+constexpr int laplace_3x3[]={0,-1,0,
+                   -1,4,-1,
+                   0,-1,0
+                  };
+constexpr int laplace_5x5[]={0,0,-1,0,0,
+                   0,-1,-2,-1,0,
+                   -1,-2,17, -2, -1,
+                   0,-1,-2,-1,0,
+                   0,0,-1,0,0
+                   };
 
 class kernelImgFilter {
 public:

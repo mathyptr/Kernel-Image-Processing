@@ -127,22 +127,18 @@ bool kernelImgFilter::buildGaussian(float sigma) {
     kernelData.resize(size * size);
     float sum = 0.0f;
 
-    // Calcolo centro del kernel
     int center = size / 2;
 
-    // Creazione del filtro gaussiano
     for (int y = -center; y <= center; y++) {
         for (int x = -center; x <= center; x++) {
-            // Calcolo del valore gaussiano per ogni posizione
             float value = exp(-(x * x + y * y) / (2.0f * sigma * sigma));
             value /= 2.0f * M_PI * sigma * sigma;
-
             kernelData[(y + center) * size + (x + center)] = value;
             sum += value;
         }
     }
 
-    // Normalizzazione per garantire che la somma dei valori sia 1
+    // Normalizzo: la somma dei valori deve essere 1
     for (int i = 0; i < size * size; i++) {
         kernelData[i] /= sum;
     }
@@ -153,21 +149,32 @@ bool kernelImgFilter::buildGaussian(float sigma) {
 
 bool kernelImgFilter::buildLaplacian() {
     std::cout << "Filtro Laplaciano...build..." << std::endl;
-;
-    kernelData.resize(size * size);
 
+    kernelData.resize(size * size);
+//LoG=((x**2+y**2-2*sigma**2)*exp(-[x**2+y**2]/2*sigma**2))/sigma**4
+//sigma=1 Log=(x**2+y**2-2)*exp(-[x**2+y**2]/2)
+/*
+    int x,y,xx,yy;
+    float Lo,sigma,duesigmasigma;
+
+    sigma=1.4;
+    duesigmasigma=2*sigma*sigma;
+
+    x=1;
+    y=1;
+    xx=x*x;
+    yy=y*y;
+    Lo=((xx+yy-duesigmasigma)*exp((-xx-yy)/duesigmasigma))/(3.14*sigma*sigma*sigma*sigma);
+    std::cout<<"LoG: "<<Lo<<std::endl;
+ */
+    int *pun;
+    if(size==3)
+        pun=(int*)laplace_3x3;
+    else
+        pun=(int*)laplace_5x5;
     // Inizializza tutti gli elementi a -1
     for (auto it = begin (kernelData); it != end (kernelData); ++it)
-        *it = LAPLACE_SURROUND;
-
-    // Imposta il valore centrale
-    kernelData[size*size/2] = LAPLACE_CENTER;  // indice centrale in una matrice 3x3
-
-    // Imposta gli angoli a 0 per ridurre la sensibilità al rumore
-    kernelData[0] = 0.0f;  // alto-sinistra
-    kernelData[size-1] = 0.0f;  // alto-destra
-    kernelData[size*size-size] = 0.0f;  // basso-sinistra
-    kernelData[size*size-1] = 0.0f;  // basso-destra
+        *it = *pun++;
 
     return true;
 }
