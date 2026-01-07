@@ -125,24 +125,15 @@ bool kernelImgFilter::buildGaussian(float sigma) {
     }
 
     kernelData.resize(size * size);
-    float sum = 0.0f;
 
-    int center = size / 2;
+    float *pun;
+    if(size==3)
+        pun=(float*)gaussian_3x3;
+    else
+        pun=(float*)gaussian_5x5;
 
-    for (int y = -center; y <= center; y++) {
-        for (int x = -center; x <= center; x++) {
-            float value = exp(-(x * x + y * y) / (2.0f * sigma * sigma));
-            value /= 2.0f * M_PI * sigma * sigma;
-            kernelData[(y + center) * size + (x + center)] = value;
-            sum += value;
-        }
-    }
-
-    // Normalizzo: la somma dei valori deve essere 1
-    for (int i = 0; i < size * size; i++) {
-        kernelData[i] /= sum;
-    }
-
+    for (auto it = begin (kernelData); it != end (kernelData); ++it)
+        *it = *pun++;
     return true;
 }
 
@@ -151,28 +142,13 @@ bool kernelImgFilter::buildLaplacian() {
     std::cout << "Filtro Laplaciano...build..." << std::endl;
 
     kernelData.resize(size * size);
-//LoG=((x**2+y**2-2*sigma**2)*exp(-[x**2+y**2]/2*sigma**2))/sigma**4
-//sigma=1 Log=(x**2+y**2-2)*exp(-[x**2+y**2]/2)
-/*
-    int x,y,xx,yy;
-    float Lo,sigma,duesigmasigma;
 
-    sigma=1.4;
-    duesigmasigma=2*sigma*sigma;
-
-    x=1;
-    y=1;
-    xx=x*x;
-    yy=y*y;
-    Lo=((xx+yy-duesigmasigma)*exp((-xx-yy)/duesigmasigma))/(3.14*sigma*sigma*sigma*sigma);
-    std::cout<<"LoG: "<<Lo<<std::endl;
- */
     int *pun;
     if(size==3)
         pun=(int*)laplace_3x3;
     else
         pun=(int*)laplace_5x5;
-    // Inizializza tutti gli elementi a -1
+
     for (auto it = begin (kernelData); it != end (kernelData); ++it)
         *it = *pun++;
 
