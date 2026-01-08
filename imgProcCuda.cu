@@ -170,6 +170,7 @@ __global__ void processSharedMem(
 
         sum = fmaxf(0.0f, fminf(sum, 255.0f));
         d_output[yy * width + xx] = sum;
+//        d_output[y * width + x] = sum;
 //            d_output[yy * width + xx] = sharedMem[ty ][tx ] ;
       }
 //      else

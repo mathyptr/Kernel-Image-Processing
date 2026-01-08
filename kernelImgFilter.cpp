@@ -54,7 +54,7 @@ bool kernelImgFilter::buildFilter(std::string filter,int kernel_size) {
     size=kernel_size;
     bool res=false;
     if (name == GAUSSIAN_FILTER_STR ) {
-        res=buildGaussian(1.0f);  // Kernel 7x7, sigma=1.0
+        res=buildGaussian();
     }
     else if (name == SHARPEN_FILTER_STR ) {
         res=buildSharp();
@@ -72,26 +72,26 @@ bool kernelImgFilter::buildFilter(std::string filter,int kernel_size) {
 }
 
 
-bool kernelImgFilter::Init(std::vector<float>& kernel, float centerValue, float surroundValue) {
-    if (size % 2 == 0 || size < 3) {
-        std::cerr << "La dimensione kernel non è valida" << std::endl;
-        return false;
-    }
+bool kernelImgFilter::copyKernel(std::vector<float>& kernel,  float *pun) {
     for (auto it = begin (kernelData); it != end (kernelData); ++it)
-        *it = surroundValue;
-    int mid=size / 2;
-    kernelData[size*size/2] = centerValue;
+        *it = *pun++;
+
     return true;
 }
 
 bool kernelImgFilter::buildEdgeDetect() {
     std::cout << "Filtro edge detection...build..." << std::endl;
     kernelData.resize(size * size);
-    for (auto it = begin (kernelData); it != end (kernelData); ++it)
-        *it = EDGE_SURROUND;
 
-//    kernelData[size*size/2] = EDGE_CENTER;
-    kernelData[size*size/2] = size*size-1;
+    float *pun;
+    if(size==3)
+        pun=(float *)edge_3x3;
+    else
+        pun=(float *)edge_5x5;
+
+    for (auto it = begin (kernelData); it != end (kernelData); ++it)
+        *it = *pun++;
+
     return true;
 }
 
@@ -107,20 +107,25 @@ bool kernelImgFilter::buildIdentity() {
 bool kernelImgFilter::buildSharp() {
     std::cout << "Filtro sharp...build..." << std::endl;
     kernelData.resize(size * size);
-    return Init(kernelData, size * size, SHARPEN_SURROUND);
+
+    int *pun;
+    if(size==3)
+        pun=(int*)sharpen_3x3;
+    else
+        pun=(int*)sharpen_5x5;
+
+    for (auto it = begin (kernelData); it != end (kernelData); ++it)
+        *it = *pun++;
+
+    return true;
 }
 
 
-bool kernelImgFilter::buildGaussian(float sigma) {
+bool kernelImgFilter::buildGaussian() {
     std::cout << "Filtro gaussiano...build..." << std::endl;
 
     if (size % 2 == 0 || size < 3) {
         std::cerr << "Il Kernel deve avere una dimensione dispari e maggiore di 2" << std::endl;
-        return false;
-    }
-
-    if (sigma <= 0) {
-        std::cerr << "Il valore di sigma deve essere positivo" << std::endl;
         return false;
     }
 
