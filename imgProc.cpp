@@ -45,26 +45,6 @@ bool ImgProc::loadImageFromFile(const char* filepath) {
     }
 }
 
-
-bool ImgProc::saveImageToFile(const char* filepath) const {
-    try {
-        png::image<png::gray_pixel> image(width, height);
-        for (size_t y = 0; y < height; ++y) {
-            for (size_t x = 0; x < width; ++x) {
-                image[y][x] = static_cast<png::gray_pixel>(imgData[y * width + x]);
-            }
-        }
-        image.write(filepath);
-        std::cout << "Immagine salvata in: " << filepath << std::endl;
-        return true;
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Errore nel salvataggio dell'immagine: " << e.what() << std::endl;
-        return false;
-    }
-}
-
-
 std::vector<float> ImgProc::buildPaddedImg(int paddingY, int paddingX) const {
     int paddedWidth = width + 2 * paddingX;
     int paddedHeight = height + 2 * paddingY;
@@ -98,8 +78,6 @@ std::vector<float> ImgProc::buildPaddedImg(int paddingY, int paddingX) const {
 
 int ImgProc::getWidth() const { return width; }
 int ImgProc::getHeight() const { return height; }
-int ImgProc::getChannels() const { return 1; }  // Immagini in scala di grigi
-
 
 bool ImgProc::setImageData(const std::vector<float>& data, int w, int h) {
     if (data.size() != w * h) {

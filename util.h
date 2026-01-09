@@ -31,6 +31,7 @@ struct testResult {
     int threadNum=1;
     double execTimes;
     testType  test_type;
+    std::string image_size;
     std::string filter_type;
     int kernel_size;
 };

@@ -13,9 +13,7 @@ public:
     ~ImgProc();
     int getWidth() const;
     int getHeight() const;
-    int getChannels() const;
     bool loadImageFromFile(const char* filepath);
-    bool saveImageToFile(const char* filepath) const;
     bool setImageData(const std::vector<float>& data, int width, int height);
     std::vector<float> buildPaddedImg(int paddingY, int paddingX) const;
     std::vector<float> getImageData() const;

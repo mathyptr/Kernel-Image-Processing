@@ -131,6 +131,7 @@ void SplashResult(string& title,std::vector<testResult>& result) {
         else
             cout<<"TEST TYPE NON DEFINITO"<< endl;
 
+        cout << "Dimensione immagine: "<< res.image_size << endl;
         cout << "Tipo filtro: "<< res.filter_type << endl;
         cout << "Kernel size : "<< res.kernel_size << endl;
         cout << "Numero Thread : "<< res.threadNum << endl;
@@ -142,7 +143,7 @@ void SplashResult(string& title,std::vector<testResult>& result) {
 
 void saveResultToFile(const std::string& filename,std::vector<testResult>& result) {
     std::ofstream fileCSV(filename);
-    fileCSV << "testType,filterType,kernelsize,numThreads,execTimes"<< endl;
+    fileCSV << "testType,ImageSize,filterType,kernelsize,numThreads,execTimes"<< endl;
 
     for (const auto& res : result) {
         if( res.test_type==SEQUENTIAL)
@@ -157,6 +158,7 @@ void saveResultToFile(const std::string& filename,std::vector<testResult>& resul
             fileCSV << "CUDA_SHARED_MEM,";
         else
             fileCSV<<"NON_DEFINITO,";
+        fileCSV << res.image_size <<",";
         fileCSV << res.filter_type <<",";
         fileCSV << res.kernel_size <<",";
         fileCSV << res.threadNum <<",";

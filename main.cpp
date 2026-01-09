@@ -21,13 +21,15 @@ int main(int argc, char** argv) {
 
     SplashScreen();
     std::string Filter="gaussian";
-//    std::string imageFilePathTest = "./input/peperoni256.png";
-    std::string imageFilePathTest = "./input/test1024.png";
-    std::string imageFilePath ="";
+    std::string imageFilePathTest = "./input/peperoni1024.png";
+//    std::string imageFilePathTest = "./input/test1024.png";
+    std::string imageFilePath ;
     std::string outputdir="./output/";
-    std::string file_outPar = "./output/resultPAR.csv";
+    std::string file_outRis;
+    std::string file_outRis_prefix = outputdir+"resultImgSize";
+    std::string file_outRis_ext = ".csv";
     std::string img_ext=".png";
-    std::string fileout_suffix="";
+    std::string fileout_suffix;
     kernelImgFilter kImgFilter;
 
     std::cout << "Directory corrente: " << filesystem::current_path()  << std::endl;
@@ -38,6 +40,8 @@ int main(int argc, char** argv) {
     }
     else
         imageFilePath=imageFilePathTest;
+
+    std::cout << "Il file da processare è: " << imageFilePath << std::endl;
     std::string  filter;
     filter=chooseFilter();
     int size=chooseKernelSize();
@@ -47,7 +51,6 @@ int main(int argc, char** argv) {
     std::cout << "Filtro da applicare: " << kImgFilter.getName() << std::endl;
     kImgFilter.display();
 
-
     fileout_suffix="_"+kImgFilter.getName()+std::to_string(kImgFilter.getSize())+"x"+std::to_string(kImgFilter.getSize())+img_ext;
 
     // Load immagine
@@ -56,6 +59,9 @@ int main(int argc, char** argv) {
         std::cerr << "Errore nella lettura dell'immagine sorgente: " << imageFilePath << std::endl;
         return 1;
     }
+
+    std::string img_size=std::to_string(inputImage.getWidth())+"x"+std::to_string(inputImage.getHeight());
+    file_outRis=file_outRis_prefix+img_size+file_outRis_ext;
 
     testResult testr;
     std::vector<testResult> testVectResult;
@@ -81,6 +87,7 @@ int main(int argc, char** argv) {
         std::vector<testResult> testVectResultSEQ;
         testr.execTimes=elapsed;
         testr.test_type=SEQUENTIAL;
+        testr.image_size=img_size;
         testr.filter_type=kImgFilter.getName() ;
         testr.kernel_size= kImgFilter.getSize();
         testVectResultSEQ.push_back(testr);
@@ -116,6 +123,7 @@ int main(int argc, char** argv) {
         std::vector<testResult> testVectResultCUDA;
         testr.execTimes=elapsed;
         testr.test_type=CUDA_CONSTANT_MEM;
+        testr.image_size=img_size;
         testr.filter_type=kImgFilter.getName() ;
         testr.kernel_size= kImgFilter.getSize();
         testVectResultCUDA.push_back(testr);
@@ -137,6 +145,7 @@ int main(int argc, char** argv) {
         std::vector<testResult> testVectResultCUDA;
         testr.execTimes=elapsed;
         testr.test_type=CUDA_GLOBAL_MEM;
+        testr.image_size=img_size;
         testr.filter_type=kImgFilter.getName() ;
         testr.kernel_size= kImgFilter.getSize();
         testVectResultCUDA.push_back(testr);
@@ -158,6 +167,7 @@ int main(int argc, char** argv) {
         std::vector<testResult> testVectResultCUDA;
         testr.execTimes=elapsed;
         testr.test_type=CUDA_SHARED_MEM;
+        testr.image_size=img_size;
         testr.filter_type=kImgFilter.getName() ;
         testr.kernel_size= kImgFilter.getSize();
         testVectResultCUDA.push_back(testr);
@@ -178,7 +188,7 @@ int main(int argc, char** argv) {
     int maxThreads = omp_get_max_threads();
     std::cout << "Numero massimo di thread disponibili: " << maxThreads << std::endl;
 
-    // Test con diversi numeri di thread (potenze di 2)
+    // Test con diversi numeri di thread
     for (int numThreads = 2; numThreads <= maxThreads; numThreads *= 2) {
         tstart = std::chrono::high_resolution_clock::now();
         auto ompResult = imgOMP.applyFilter(kImgFilter, numThreads);
@@ -192,6 +202,7 @@ int main(int argc, char** argv) {
             testr.execTimes=elapsed;
             testr.threadNum=numThreads;
             testr.test_type=PARALLEL;
+            testr.image_size=img_size;
             testr.filter_type=kImgFilter.getName() ;
             testr.kernel_size= kImgFilter.getSize();
             testVectResultOMP.push_back(testr);
@@ -202,7 +213,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    saveResultToFile(file_outPar,testVectResult);
+    saveResultToFile(file_outRis,testVectResult);
 
     return 0;
 }
