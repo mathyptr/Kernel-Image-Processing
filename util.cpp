@@ -12,6 +12,9 @@
 
 using namespace std;
 
+/*********************************************************
+**** Funzione per la descrizione a video del programma ***
+*********************************************************/
 void SplashScreen() {
     cout << "###############################################################"<<endl;
     cout << "###Kernel Image Processing is a set of image filtering techniques implemented through a convolution operation between an input image and a mask (kernel).###"<<endl;
@@ -19,7 +22,10 @@ void SplashScreen() {
     cout << "################################################################"<<endl;
 }
 
-
+/*********************************************************
+**** Funzione per la selezione del filtro da applicare ***
+**** all'immagine                                      ***
+*********************************************************/
 std::string  chooseFilter() {
 
     cout << endl<<"######################"<< endl;
@@ -57,6 +63,10 @@ std::string  chooseFilter() {
     return filter_str;
 }
 
+/*********************************************************
+***** Funzione per la selezione della dimensione del *****
+***** filtro da applicare all'immagine               *****
+*********************************************************/
 int  chooseKernelSize() {
 
     cout << endl<<"######################"<< endl;
@@ -86,6 +96,11 @@ int  chooseKernelSize() {
     return size;
 }
 
+/********************************************************************
+***** Funzione per l'inserimento del nome del file immagine     *****
+***** comprensivo del percorso.                                 *****
+***** Può essere scelto il file di test fornito con il progetto.*****
+*********************************************************************/
 bool  insertFileName() {
 
     cout << endl;
@@ -111,7 +126,15 @@ bool  insertFileName() {
 }
 
 
-
+/**********************************************************
+***** Funzione per la visualizzazione dei risultati:  *****
+      -Tipoogia Test
+      -Dimensione immagine
+      -Tipo filtro
+      -Kernel size
+      -Numero Thread
+      -Tempo di esecuzione
+**********************************************************/
 void SplashResult(string& title,std::vector<testResult>& result) {
     cout << "#####################################"<<endl;
     cout << title<< endl;
@@ -140,7 +163,11 @@ void SplashResult(string& title,std::vector<testResult>& result) {
     }
 }
 
-
+/****************************************************************************
+******* Funzione per salvare i risultati su file csv.                 *******
+******* Intestazione di colonna:
+******* testType,ImageSize,filterType,kernelsize,numThreads,execTimes *******
+*****************************************************************************/
 void saveResultToFile(const std::string& filename,std::vector<testResult>& result) {
     std::ofstream fileCSV(filename);
     fileCSV << "testType,ImageSize,filterType,kernelsize,numThreads,execTimes"<< endl;
@@ -166,7 +193,10 @@ void saveResultToFile(const std::string& filename,std::vector<testResult>& resul
     }
 }
 
-
+/***********************************************************************************
+***** Funzione per visualizzare informazioni sulla memoria della scheda grafica: ***
+***** Memoria libera, Memoria totale, Memoria usata                              ***
+************************************************************************************/
 void checkGpuMem()
 {
     float free_m,total_m,used_m;

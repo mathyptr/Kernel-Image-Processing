@@ -17,12 +17,12 @@
 
 
 int main(int argc, char** argv) {
-    // Verifica i parametri di input
 
     SplashScreen();
+
     std::string Filter="gaussian";
     std::string imageFilePathTest = "./input/peperoni1024.png";
-//    std::string imageFilePathTest = "./input/test1024.png";
+//    std::string imageFilePathTest = "./input/test1024.png"; //altra immagine di test
     std::string imageFilePath ;
     std::string outputdir="./output/";
     std::string file_outRis;
@@ -43,7 +43,9 @@ int main(int argc, char** argv) {
 
     std::cout << "Il file da processare è: " << imageFilePath << std::endl;
     std::string  filter;
+
     filter=chooseFilter();
+
     int size=chooseKernelSize();
     kImgFilter.buildFilter(filter,size);
 
