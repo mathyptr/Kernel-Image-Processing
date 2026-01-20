@@ -4,7 +4,12 @@
 #include <iostream>
 #include <png++/png.hpp>
 
-
+/****************************************************************************************************
+******* Classe per applicare un filtro ad un'immagine in modo parallelo tramite openMP.      ********
+******* I loop del processo di convoluzione vengono parallelizzati utilizzando le direttive  ********                                              ***********
+******* OpenMP, consentendo a più thread di elaborare contemporaneamente regioni distinte    ********
+******* dell'immagine.                                                                       ********
+****************************************************************************************************/
 ImgProcOMP::ImgProcOMP(ImgProc& inputImage){
     imgProcInput=inputImage;
     width=inputImage.getWidth();
@@ -15,6 +20,9 @@ ImgProcOMP::~ImgProcOMP() {
 
 }
 
+/*****************************************************************************
+*********** Metodo per applicare un filtro all'immagine.              ********
+*****************************************************************************/
 bool ImgProcOMP::applyFilter(const kernelImgFilter& filter, int numThreads)
 {
     int kernelSize = filter.getSize();
@@ -49,6 +57,9 @@ bool ImgProcOMP::applyFilter(const kernelImgFilter& filter, int numThreads)
     return true;
 }
 
+/*****************************************************************
+*********** Metodo per salvare su file l'immagine filtrata *******
+*****************************************************************/
 bool ImgProcOMP::saveImageToFile(const char* filepath) const {
     try {
         std::vector<float> imgData= imgProc.getImageData();

@@ -1,10 +1,7 @@
-// image_processor.cu
 #include "imgProcCuda.h"
 #include <png++/png.hpp>
 #include <iostream>
-#include <chrono>
 #include <cuda_runtime.h>
-#include <device_launch_parameters.h>
 
 #include <algorithm>
 
@@ -14,15 +11,22 @@
 
 #define MAX_KERNEL_SIZE 25
 
-
+// Constant Memory per il kernel del filtro
 __device__ __constant__ float d_filterKernel[MAX_KERNEL_SIZE * MAX_KERNEL_SIZE];
 
-
+/***********************************************************************************
+************ Funzione per calcolare il numero di blocchi necessari per     *********
+************ l'elaborazione dell immagine.                                 *********
+***********************************************************************************/
 unsigned int numBlocchi(unsigned int total, unsigned int blockSize) {
     return ceil(total/ blockSize);
 }
 
-
+/***********************************************************************************
+********** Funzione che implementa la convoluzione utilizzando la memoria   ********
+********** globale della GPU per applicare un filtro all'immagine: immagine ********
+********** e filtro risiedono nella memoria globale.                        ********
+***********************************************************************************/
 __global__ void processGlobalMem(
     float* padded, float* d_output, float* kernel,
     int width, int height, int paddedWidth, int paddedHeight,
@@ -49,6 +53,10 @@ __global__ void processGlobalMem(
     d_output[y * width + x] = sum;
 }
 
+/***************************************************************************************
+********** Funzione che implementa la convoluzione utilizzando la global memory ********
+********** per l'immagine e la constant memory per il filtro.                   ********
+ **************************************************************************************/
 __global__ void processConstantMem(
     float* padded, float* d_output,
     int width, int height, int paddedWidth, int paddedHeight,
@@ -75,7 +83,10 @@ __global__ void processConstantMem(
     d_output[y * width + x] = sum;
 }
 
-
+/**********************************************************************************************
+******** Funzione che implementa la convoluzione utilizzando la shared memory per caricare ****
+******** blocchi dell'immagine. Su ciascun blocco lavorerà un gruppo di thread.            ****
+**********************************************************************************************/
 __global__ void processSharedMem(
         float* d_input, float* d_output,
         int width, int height, int paddedWidth, int paddedHeight,
@@ -120,18 +131,24 @@ __global__ void processSharedMem(
 }
 
 
-
+/****************************************************************************************************
+******* Classe per applicare un filtro ad un'immagine in modo parallelo tramite CUDA.        ********
+******* L'implementazione sfrutta il parallelismo della GPU attraverso tre diverse gerarchie ********
+******* di memorie: Global Memory, Constant Memory e Shared Memory                           ********
+****************************************************************************************************/
 ImgProcCuda::ImgProcCuda(ImgProc& inputImage) {
     imgProcInput=inputImage;
     height=imgProcInput.getHeight();
     width=imgProcInput.getWidth();
 }
 
-
 ImgProcCuda::~ImgProcCuda() {
 
 }
 
+/*****************************************************************************
+*********** Metodo per applicare un filtro all'immagine.              ********
+*****************************************************************************/
 bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryType memType)
 {
     int kernelSize = filter.getSize();
@@ -151,7 +168,6 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
             numBlocchi(width, BLOCK_DIM_X),
             numBlocchi(height, BLOCK_DIM_Y)
     );
-
     dim3 blockSize1(BLOCK_DIM_X+2*radius, BLOCK_DIM_Y+2*radius);
 
     float* d_input, * d_output, * d_kernel = nullptr;
@@ -189,7 +205,6 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
     else if (memType == CudaMemoryType::SHARED_MEM) {
         cudaMemcpyToSymbol(d_filterKernel, filter.getKernelData().data(),kernelSize * kernelSize * sizeof(float));
 
-//        processSharedMem <<<gridSize, blockSize >>> (
         processSharedMem <<<gridSize, blockSize1 >>> (
                 d_input, d_output,
                 width, height, paddedWidth, paddedHeight,
@@ -219,6 +234,9 @@ bool ImgProcCuda::applyFilter(const kernelImgFilter& filter, const CudaMemoryTyp
     return true;
 }
 
+/*****************************************************************
+*********** Metodo per salvare su file l'immagine filtrata *******
+*****************************************************************/
 bool ImgProcCuda::saveImageToFile(const char* filepath) const {
     try {
         std::vector<float> imgData= imgProc.getImageData();
