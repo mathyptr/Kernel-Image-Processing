@@ -14,8 +14,11 @@
 
 #define MAX_KERNEL_SIZE 25
 
-
-
+/*********************************************************************
+********* Classe per la gestione delle immagini. Fornisce le **********
+********* funzionalità per caricare, salvare e effettuare il **********
+********* padding di un'immagine.                            **********
+*********************************************************************/
 ImgProc::ImgProc() : width(0), height(0) {}
 
 
@@ -24,7 +27,9 @@ ImgProc::~ImgProc() {
     std::vector<float>().swap(imgData);
 }
 
-
+/*******************************************************
+******** Metodo per il loading di un'immagine   ********
+*******************************************************/
 bool ImgProc::loadImageFromFile(const char* filepath) {
     try {
         png::image<png::gray_pixel> image(filepath);
@@ -45,6 +50,9 @@ bool ImgProc::loadImageFromFile(const char* filepath) {
     }
 }
 
+/******************************************************************************
+*********** Metodo per creare una versione dell'immagine con padding **********
+******************************************************************************/
 std::vector<float> ImgProc::buildPaddedImg(int paddingY, int paddingX) const {
     int paddedWidth = width + 2 * paddingX;
     int paddedHeight = height + 2 * paddingY;
@@ -76,9 +84,25 @@ std::vector<float> ImgProc::buildPaddedImg(int paddingY, int paddingX) const {
     return padded;
 }
 
-int ImgProc::getWidth() const { return width; }
-int ImgProc::getHeight() const { return height; }
+/*******************************************************
+********** Metodo getter dell'attributo width ***********
+*******************************************************/
+int ImgProc::getWidth() const
+{
+    return width;
+}
 
+/*******************************************************
+********* Metodo getter dell'attributo height **********
+*******************************************************/
+int ImgProc::getHeight() const
+{
+    return height;
+}
+
+/*******************************************************
+********* Metodo setter dell'attributo imgData *********
+*******************************************************/
 bool ImgProc::setImageData(const std::vector<float>& data, int w, int h) {
     if (data.size() != w * h) {
         std::cerr << "Dimensioni dati non valide" << std::endl;
@@ -90,6 +114,9 @@ bool ImgProc::setImageData(const std::vector<float>& data, int w, int h) {
     return true;
 }
 
+/*******************************************************
+******** Metodo getter dell'attributo imgData **********
+*******************************************************/
 std::vector<float> ImgProc::getImageData() const {
     return imgData;
 }

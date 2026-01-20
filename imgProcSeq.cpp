@@ -3,18 +3,27 @@
 #include <algorithm>
 #include <iostream>
 
-
+/******************************************************************************************
+*********** Classe per applicare un filtro ad un'immagine in modo sequenziale:   **********
+*********** i valori del kernel vengono moltiplicati per i valori dei pixel      **********
+*********** corrispondenti e i risultati vengono sommati per produrre un singolo **********
+*********** pixel dell'immagine di output.                                       **********
+*********** Il kernel si sposta quindi sul pixel successivo e ripete il processo **********
+*********** fino a quando l'intera immagine non è stata elaborata.               **********
+******************************************************************************************/
 ImgProcSeq::ImgProcSeq(ImgProc& inputImage)  {
     imgProcInput=inputImage;
     height=imgProcInput.getHeight();
     width=imgProcInput.getWidth();
 }
 
-
 ImgProcSeq::~ImgProcSeq() {
 
 }
 
+/*************************************************************************************
+*********** Metodo per applicare un filtro all'immagine in modo sequenziale.  ********
+*************************************************************************************/
 bool ImgProcSeq::applyFilter( const kernelImgFilter& filter)
 {
 
@@ -44,6 +53,9 @@ bool ImgProcSeq::applyFilter( const kernelImgFilter& filter)
     return true;
 }
 
+/*****************************************************************
+*********** Metodo per salvare su file l'immagine filtrata *******
+*****************************************************************/
 bool ImgProcSeq::saveImageToFile(const char* filepath) const {
     try {
         std::vector<float> imgData= imgProc.getImageData();
