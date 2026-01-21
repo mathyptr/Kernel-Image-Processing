@@ -15,9 +15,9 @@
 #define MAX_KERNEL_SIZE 25
 
 /*********************************************************************
-********* Classe per la gestione delle immagini. Fornisce le **********
-********* funzionalità per caricare, salvare e effettuare il **********
-********* padding di un'immagine.                            **********
+********* Classe per la gestione delle immagini. Fornisce le *********
+********* funzionalità per caricare, salvare e effettuare il *********
+********* padding di un'immagine.                            *********
 *********************************************************************/
 ImgProc::ImgProc() : width(0), height(0) {}
 
@@ -85,7 +85,7 @@ std::vector<float> ImgProc::buildPaddedImg(int paddingY, int paddingX) const {
 }
 
 /*******************************************************
-********** Metodo getter dell'attributo width ***********
+********** Metodo getter dell'attributo width **********
 *******************************************************/
 int ImgProc::getWidth() const
 {
